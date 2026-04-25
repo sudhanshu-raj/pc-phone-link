@@ -1,0 +1,43 @@
+# General
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Node / Electron
+node_modules/
+dist/
+out/
+build/
+release/
+coverage/
+.cache/
+.parcel-cache/
+
+# Electron Forge / Builder artifacts
+*.blockmap
+*.zip
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+
+# IDE
+.vscode/
+.idea/
+
+*.png
+*.md
+*.css
