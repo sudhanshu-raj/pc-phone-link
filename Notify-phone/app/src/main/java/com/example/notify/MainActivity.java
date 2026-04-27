@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -38,6 +39,10 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+
+        //to keep screen awake , useful for dev
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
 
         authenticateConnection = new AuthenticateConnection(this);
         networkDiscovery = new NetworkDiscovery(this);
@@ -89,12 +94,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void sendMsg(View v){
+        // For testing purposes, launch SetupInstructions activity
+        Intent intent = new Intent(this, SetupInstructionsActivity.class);
+        startActivity(intent);
+
         if(AuthenticateConnection.isLANConAuthenticated) {
             Log.d(TAG, "Sending message...");
             EditText txt = findViewById(R.id.sendMsgInp);
             String msg = txt.getText().toString();
-            ws = authenticateConnection.ws;
-            ws.send(msg);
+            ws = AuthenticateConnection.ws;
+            if (ws != null) {
+                ws.send(msg);
+            }
         }
         else{
             Toast.makeText(this, "Wifi not connected or not authenticated", Toast.LENGTH_SHORT).show();

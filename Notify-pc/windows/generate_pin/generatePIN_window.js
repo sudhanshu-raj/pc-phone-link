@@ -1,8 +1,8 @@
-const { BrowserWindow } = require("electron/main")
+const { BrowserWindow} = require("electron/main")
 const path = require("path")
 
-function createInstructionWindow(){
 
+function  createPINWindow(){
     const win = new BrowserWindow({
         width : 284,
         height : 544,
@@ -14,5 +14,5 @@ function createInstructionWindow(){
 }
 
 module.exports = {
-    createInstructionWindow
+    createPINWindow
 }

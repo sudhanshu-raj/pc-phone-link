@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/deviceCard"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    android:background="@drawable/card_background"
+    android:paddingTop="1dp"
+    android:paddingBottom="16dp"
+    android:paddingHorizontal="16dp"
+    >
+
+    <ImageView
+        android:id="@+id/pcIcon"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@android:drawable/ic_menu_report_image"
+        android:tint="#FFFFFF"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:ignore="UseAppTint" />
+
+    <TextView
+        android:id="@+id/deviceName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:fontFamily="@font/montserrat"
+        android:text="Device Name"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toEndOf="@+id/pcIcon"
+        app:layout_constraintTop_toTopOf="@+id/pcIcon" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/pairButton"
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/rounded_button_tert"
+        android:fontFamily="@font/montserrat"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:text="Pair"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:stateListAnimator="@animator/button_click_shadow"
+        app:layout_constraintStart_toStartOf="@+id/deviceName"
+        app:layout_constraintTop_toBottomOf="@+id/deviceName" />
+
+    <!-- Static circle with radial shadow -->
+    <View
+        android:id="@+id/statusCircle"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:background="@drawable/glowing_circle"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Twinkling/Glowing circle (hidden by default) -->
+    <View
+        android:id="@+id/statusCircleGlowing"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:background="@drawable/glowing_circle"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

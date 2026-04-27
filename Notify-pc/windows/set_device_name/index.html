@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Set Device Name</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <section class="screen" aria-label="Set Device Name">
+      <header class="topbar">
+        <div class="brand">App name</div>
+      </header>
+
+      <main class="name-container" aria-label="Device name setup">
+        <h1>Set your device name</h1>
+
+        <div class="field-wrap">
+          <input
+            class="device-input"
+            type="text"
+            name="deviceName"
+            placeholder="your device name"
+            maxlength="10"
+            aria-label="Device name"
+          />
+          <p class="hint">Keep the name under ten chars</p>
+        </div>
+
+        <button class="set-btn" type="button">Set</button>
+      </main>
+
+      <button class="back-btn" type="button" aria-label="Back">
+        <span class="back-arrow">‹</span>
+      </button>
+    </section>
+
+  </body>
+</html>

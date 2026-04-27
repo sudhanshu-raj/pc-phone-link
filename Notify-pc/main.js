@@ -1,9 +1,17 @@
-const {app, BrowserWindow, ipcMain} = require("electron/main")
+require('electron-reload')(__dirname);
+
+const {app, BrowserWindow, ipcMain, Menu} = require("electron/main")
 const WebSocket = require("ws")
 const path = require('path');
 const bonjour = require('bonjour')();
 const { createHttpServer } = require('./httpServer');
 const utils = require('./utils')
+
+const {createInstructionWindow} = require('./windows/instrcutions_window/setupInstruction')
+const {createDeviceScanWindow} = require("./windows/device_scan/deviceScan")
+const {createPINWindow} = require('./windows/generate_pin/generatePIN_window')
+const {createNotificationWindow} = require('./windows/notification_list/notification_list')
+const  {createSetDeviceNameWin} = require('./windows/set_device_name/setDeviceName')
 
 let mainWindow;
 const WEBSOCKET_PORT = 8090;
@@ -49,7 +57,6 @@ async function startAppServices() {
         }
     })
 }
-
 
 function buildServiceName(lanIp) {
     if (!lanIp) {
@@ -113,10 +120,17 @@ function startWebSocketServer(port){
 
 app.whenReady().then(() =>{
 
-    mainWindow = createWindow();
-    mainWindow.webContents.once('did-finish-load', async () => {
-        await startAppServices();
-    });
+    Menu.setApplicationMenu(null);
+
+    // mainWindow = createWindow();
+    mainWindow = createDeviceScanWindow();
+    createInstructionWindow();
+    createPINWindow();
+    createNotificationWindow()
+    createSetDeviceNameWin()
+    // mainWindow.webContents.once('did-finish-load', async () => {
+    //     await startAppServices();
+    // });
 
     app.on('activate', () =>{
         if(BrowserWindow.getAllWindows().length === 0){

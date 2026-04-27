@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Notification List</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="frame" aria-label="Notification list">
+      <header class="topbar">
+        <div class="brand">App Logo</div>
+        <button class="menu-btn" type="button" aria-label="More options">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </header>
+
+      <section class="device-card" aria-label="Connected device">
+        <div class="battery">
+          <strong>$</strong>
+          <strong>75%</strong>
+        </div>
+
+        <div class="device-copy">
+          <div class="device-head">
+            <h1>Device Name</h1>
+            <button class="sync-btn" type="button" aria-label="Refresh device">
+              <img src="./img/cycle.png" alt="" />
+            </button>
+          </div>
+
+          <div class="status-row">
+            <span class="status-pill">
+              <img src="./img/link.png" alt="" />
+              Connected</span
+            >
+          </div>
+        </div>
+      </section>
+
+      <div class="toolbar">
+        <button class="clear-btn" type="button">Clear all</button>
+      </div>
+
+      <section class="notification-list" aria-label="Notifications">
+        <article class="notification-card">
+          <div class="notification-meta">
+            <div class="notification-app">
+              <img src="./img/whatsapp.png" alt="" />
+              <h2>Whatsapp</h2>
+            </div>
+            <time>12:10 p.m</time>
+          </div>
+          <button
+            class="dismiss-btn"
+            type="button"
+            aria-label="Dismiss notification"
+          >
+            ×
+          </button>
+          <h3>Araya</h3>
+          <p>
+            Don't wait! It's time to explore what's new and start the
+            conversation
+          </p>
+        </article>
+
+        <article class="notification-card">
+          <div class="notification-meta">
+            <h2>App Name &amp; logo</h2>
+            <time>12:10 p.m</time>
+          </div>
+          <button
+            class="dismiss-btn"
+            type="button"
+            aria-label="Dismiss notification"
+          >
+            ×
+          </button>
+          <h3>Title</h3>
+          <p>Message Content ...</p>
+
+          <div class="reply-box" aria-label="Quick reply">
+            <input
+              type="text"
+              aria-label="Enter your message"
+              placeholder="Enter your message..."
+            />
+            <button type="button">Reply</button>
+          </div>
+        </article>
+
+        <article class="notification-card">
+          <div class="notification-meta">
+            <h2>App Name &amp; logo</h2>
+            <time>12:10 p.m</time>
+          </div>
+          <button
+            class="dismiss-btn"
+            type="button"
+            aria-label="Dismiss notification"
+          >
+            ×
+          </button>
+          <h3>Title</h3>
+          <p>Message Content ...</p>
+        </article>
+
+        <article class="notification-card">
+          <div class="notification-meta">
+            <h2>App Name &amp; logo</h2>
+            <time>12:10 p.m</time>
+          </div>
+          <button
+            class="dismiss-btn"
+            type="button"
+            aria-label="Dismiss notification"
+          >
+            ×
+          </button>
+          <h3>Title</h3>
+          <p>Message Content ...</p>
+        </article>
+
+        <article class="notification-card">
+          <div class="notification-meta">
+            <h2>App Name &amp; logo</h2>
+            <time>12:10 p.m</time>
+          </div>
+          <button
+            class="dismiss-btn"
+            type="button"
+            aria-label="Dismiss notification"
+          >
+            ×
+          </button>
+          <h3>Title</h3>
+          <p>Message Content ...</p>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>
