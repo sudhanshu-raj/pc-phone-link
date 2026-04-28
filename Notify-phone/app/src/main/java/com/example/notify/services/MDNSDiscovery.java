@@ -24,7 +24,7 @@ public class MDNSDiscovery {
     private NsdManager.DiscoveryListener discoveryListener;
 
     public interface OnServiceFoundListener {
-        void onServiceFound(String ip, int port);
+        void onServiceFound(String deviceName,String ip, int port);
     }
 
     public MDNSDiscovery(Context context) {
@@ -43,7 +43,7 @@ public class MDNSDiscovery {
             public void onServiceFound(NsdServiceInfo service) {
                 Log.d(TAG, "Service found: " + service.getServiceName());
 
-                if (SERVICE_TYPE.equals(service.getServiceType()) && service.getServiceName().contains(SERVICE_NAME)) {
+                if (SERVICE_TYPE.equals(service.getServiceType())) {
                     nsdManager.resolveService(service, new NsdManager.ResolveListener() {
 
                         @Override
@@ -63,14 +63,14 @@ public class MDNSDiscovery {
                                     }
                                 }
                             }
-                            String ipFromName = getIPFromServiceName(service.getServiceName());
-                            if(ip == null || !ip.equals(ipFromName)){
-                                Log.d(TAG,"Wi-fi IP not matching between  ip from service name and ip from the service host address");
-                            }
+                            String deviceName = service.getServiceName();
+//                            if(ip == null || !ip.equals(ipFromName)){
+//                                Log.d(TAG,"Wi-fi IP not matching between  ip from service name and ip from the service host address");
+//                            }
 
                             int port = serviceInfo.getPort();
-                            Log.d(TAG, "Resolved: " + ipFromName + ":" + port);
-                            listener.onServiceFound(ipFromName, port);
+                            Log.d(TAG, "Resolved: " + ip + ":" + port);
+                            listener.onServiceFound(deviceName,ip, port);
                         }
                         @Override
                         public void onResolveFailed(NsdServiceInfo serviceInfo, int errorCode) {

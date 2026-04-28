@@ -1,11 +1,13 @@
 package com.example.notify;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -17,8 +19,11 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.notify.utils.NetworkDiscovery;
+
 public class SetDeviceNameActivity extends AppCompatActivity {
 
+    private static final String TAG = "Notifi:SetDeviceNameActivity";
     private EditText deviceNameInput;
     private TextView hintText;
     private AppCompatButton setButton;
@@ -61,8 +66,12 @@ public class SetDeviceNameActivity extends AppCompatActivity {
                 Toast.makeText(this, "Name too long!", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(this, "Device name set: " + name, Toast.LENGTH_SHORT).show();
+
+                SharedPreferences sharedPref = getSharedPreferences("Notify_shared_pref", MODE_PRIVATE);
+                sharedPref.edit().putString("deviceName", name).apply();
                 Intent intent = new Intent(this, DeviceSearchingActivity.class);
                 startActivity(intent);
+
             }
         });
 

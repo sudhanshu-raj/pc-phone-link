@@ -107,9 +107,10 @@ public class AuthenticateConnection {
     }
 
     public void generatePIN(ApiService api){
-        String deviceName = getDeviceName();
+        try{
         Map<String, Object> body = new HashMap<>();
-        body.put("deviceName", deviceName);
+
+        body.put("deviceName", sharedPref.getString("deviceName", null));
         body.put("phoneIP",new NetworkDiscovery(context).getPhoneIP());
         api.generatePIN(body).enqueue(new Callback<Map<String, Object>>() {
 
@@ -131,6 +132,10 @@ public class AuthenticateConnection {
                 Log.d(TAG, "Error generating PIN: " + t.getMessage());
             }
         });
+        }
+        catch (Exception e){
+            Log.e(TAG, "Error while generating PIN : " + e.getMessage());
+        }
 
     }
     public void submitLANPIN(){
@@ -138,7 +143,7 @@ public class AuthenticateConnection {
             ApiService api = ApiClient.getService(getBaseURL());
             String pinInput = getPINInput();
             if(pinInput != null) {
-                authenticateLAN(pinInput, api);
+                authenticateLAN(pinInput, api, isAuthenticated -> {});
             }
             else{
                 Log.d(TAG, "PIN input is null");
@@ -148,7 +153,7 @@ public class AuthenticateConnection {
             Log.d(TAG, "Exception : " + e.getMessage());
         }
     }
-    public void authenticateLAN(String pinInput, ApiService api){
+    public void authenticateLAN(String pinInput, ApiService api, GetAuthenticateResponse callback){
         Map<String, Object> body = new HashMap<>();
         body.put("pin", pinInput);
         body.put("deviceID",getDeviceID());
@@ -165,15 +170,18 @@ public class AuthenticateConnection {
                     webSocketURL = (String) result.get("webSocketURL");
                     startWebSocket(webSocketURL);
                     isLANConAuthenticated = true;
+                    callback.onResponse(true);
                 }
                 else{
                     Log.d(TAG, Objects.requireNonNull(result.get("message")).toString());
+                    callback.onResponse(false);
                 }
             }
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                 Log.d(TAG, "Error authenticating LAN: " + t.getMessage());
+                callback.onResponse(false);
             }
         });
     }
@@ -232,5 +240,9 @@ public class AuthenticateConnection {
     public String getBaseURL(){
         if(NetworkDiscovery.serverIP == null) return null;
         return "http://" + NetworkDiscovery.serverIP + ":" + NetworkDiscovery.httpPort + "/api/v1/";
+    }
+
+    public interface GetAuthenticateResponse {
+        void onResponse(boolean isAuthenticated);
     }
 }

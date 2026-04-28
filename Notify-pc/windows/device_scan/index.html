@@ -20,24 +20,21 @@
       </header>
 
       <section class="scanner" aria-label="Scanning animation">
- 
         <div class="radar-container">
           <div class="radar">
-    
             <div class="pulse"></div>
             <div class="pulse"></div>
             <div class="pulse"></div>
             <div class="pulse"></div>
 
             <div class="tower">
-              <img
-                src="./img/tower.png"
-                alt="tower_"
-              />
+              <img src="./img/tower.png" alt="tower_" />
             </div>
 
-            <div class="device" id="device"></div>
-            <div class="label" id="label">iPhone 15</div>
+            <div id="device-info">
+              <div class="device" id="device"></div>
+              <div class="label" id="label">iPhone 15</div>
+            </div>
           </div>
 
           <!-- <div class="status" id="status">Scanning for devices...</div> -->
@@ -50,46 +47,11 @@
         <p class="hint">Make sure both are on same wifi</p>
       </section>
 
-      <button class="back-btn" type="button" aria-label="Back">
+      <!-- <button class="back-btn" type="button" aria-label="Back">
         <span class="back-arrow">‹</span>
-      </button>
+      </button> -->
     </section>
 
-    <script>
-      function displayDevice(deviceName) {
-        const radarRadius = 125; // 250px diameter / 2
-        const deviceSize = 12;
-        const labelOffset = 25;
-        const minRadius = 50;
-        const maxRadius = radarRadius * 0.75;
-
-        const angle = Math.random() * 2 * Math.PI;
-        const radius = Math.random() * (maxRadius - minRadius) + minRadius;
-
-        const x = radarRadius + radius * Math.cos(angle);
-        const y = radarRadius + radius * Math.sin(angle);
-
-        const top = y - deviceSize / 2;
-        const left = x - deviceSize / 2;
-
-        const device = document.getElementById("device");
-        const label = document.getElementById("label");
-
-        if (!device || !label) {
-          return;
-        }
-
-        device.style.top = top + "px";
-        device.style.left = left + "px";
-
-        label.textContent = deviceName;
-        
-        label.style.top = top - labelOffset + "px";
-        label.style.left = left - 5 + "px";
-      }
-
-      displayDevice("iyo");
-
-    </script>
+    <script src="renderer.js"></script>
   </body>
 </html>

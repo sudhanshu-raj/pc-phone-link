@@ -2,6 +2,7 @@ package com.example.notify;
 
 import android.content.ComponentName;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
@@ -33,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
     AuthenticateConnection authenticateConnection;
     NetworkDiscovery networkDiscovery;
     WebSocket ws;
+    SharedPreferences sharedPreferences;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,13 +42,19 @@ public class MainActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
 
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
+
         //to keep screen awake , useful for dev
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-
         authenticateConnection = new AuthenticateConnection(this);
         networkDiscovery = new NetworkDiscovery(this);
-        networkDiscovery.register();
+        sharedPreferences = getSharedPreferences("Notify_shared_pref", MODE_PRIVATE);
+
 
         // Check if the service is enabled
         ComponentName cn = new ComponentName(this, MyNotificationListener.class);
@@ -59,23 +67,24 @@ public class MainActivity extends AppCompatActivity {
             this.startActivity(new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));
         }
 
-
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
-
-        if(networkDiscovery.isWifiConnected()) {
-            try{
-                tryConnectLAN();
-            }
-            catch (Exception e){
-                Log.d(TAG, "Exception : " + e.getMessage());
-            }
+        if(sharedPreferences.getBoolean("isDeviceSetup",false) == false){
+            Log.d(TAG,"Device not setup, try setting it up");
+            Intent intent = new Intent(this, SetupInstructionsActivity.class);
+            startActivity(intent);
         }
         else{
-            Log.d(TAG,"Client not connected to wifi, try on Cellular connection");
+            Log.d(TAG,"Device already setup");
+//            if(networkDiscovery.isWifiConnected()) {
+//                try{
+//                    tryConnectLAN();
+//                }
+//                catch (Exception e){
+//                    Log.d(TAG, "Exception : " + e.getMessage());
+//                }
+//            }
+//            else{
+//                Log.d(TAG,"Client not connected to wifi, try on Cellular connection");
+//            }
         }
 
     }
@@ -83,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
     public void tryConnectLAN() {
         if(!NetworkDiscovery.isConnectedToLAN) {
             Log.d(TAG, "Attempting to connect to LAN...");
-            networkDiscovery.connectLAN((ip, port) -> {
+            networkDiscovery.connectLAN((deviceName,ip, port) -> {
                 Log.d(TAG, "Found server at: " + ip);
                 runOnUiThread(() -> authenticateConnection.verifyConnection());
             });

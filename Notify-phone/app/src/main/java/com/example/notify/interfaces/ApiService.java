@@ -15,6 +15,10 @@ public interface ApiService {
     @GET("/pong")
     Call<Map<String, Object>> pong();
 
+    @POST("/phonesFound")
+    Call<Map<String, Object>> phonesFound(@Body Map<String, String> body);
+
+
     @POST("/verifyLANToken")
     Call<Map<String, Object>> verifyToken(@Body Map<String, Object> body);
 

@@ -23,6 +23,7 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
     private final ConnectivityManager cm;
     private final Context context;
     public static String serverIP;
+    public static String serverDeviceName;
     public static int  httpPort;
 
     // Track which transports are currently active to handle onLost correctly
@@ -80,7 +81,9 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
         if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
             Log.d(TAG, "WiFi available");
             activeTransports.add(NetworkCapabilities.TRANSPORT_WIFI);
-            connectLAN();
+            if(!isConnectedToLAN) {
+                connectLAN();
+            }
 
         }
         if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
@@ -112,8 +115,8 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
     public  void connectLAN(){
         if(!isConnectedToLAN){
             Log.d(TAG,"Connecting the LAN Server...");
-            connectLAN((ip, port) -> {
-                Log.d(TAG, "Connected to the LAN with IP: " + ip + ":" + port);
+            connectLAN((serverDeviceName,ip, port) -> {
+                Log.d(TAG, "Connected to the device of LAN with IP: " + serverDeviceName + " at: " + ip + ":" + port);
                 new Handler(Looper.getMainLooper()).post(() -> new AuthenticateConnection(context).verifyConnection());
             });
         }
@@ -132,13 +135,15 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
         MDNSDiscovery mdnsDiscovery = new MDNSDiscovery(context);
 
         try {
-            mdnsDiscovery.startDiscovery((ip, port) -> {
+            mdnsDiscovery.startDiscovery((deviceName,ip, port) -> {
                 serverIP = ip;
                 httpPort = port;
+                serverDeviceName = deviceName;
                 isConnectedToLAN = true;
                 Log.d(TAG,"Now the discovery got done with ip: " + serverIP + " and port: " + httpPort );
+
                 if (listener != null) {
-                    listener.onServiceFound(ip, port);
+                    listener.onServiceFound(deviceName,ip, port);
                 }
             });
         }

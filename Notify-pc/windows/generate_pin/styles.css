@@ -10,6 +10,7 @@
   --text: #ffffff;
   --muted: rgba(255, 255, 255, 0.78);
   --muted-soft: rgba(255, 255, 255, 0.55);
+  --test : #7e1e1e;
 }
 
 html,
