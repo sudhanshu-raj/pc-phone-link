@@ -67,13 +67,16 @@ public class MainActivity extends AppCompatActivity {
             this.startActivity(new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));
         }
 
-        if(sharedPreferences.getBoolean("isDeviceSetup",false) == false){
+        if(!sharedPreferences.getBoolean("isDeviceSetup", false)){
             Log.d(TAG,"Device not setup, try setting it up");
             Intent intent = new Intent(this, SetupInstructionsActivity.class);
             startActivity(intent);
         }
         else{
             Log.d(TAG,"Device already setup");
+//            if(authenticateConnection.isLANConAuthenticated)
+            Intent intent = new Intent(this, ConnectedDeviceListActivity.class);
+            startActivity(intent);
 //            if(networkDiscovery.isWifiConnected()) {
 //                try{
 //                    tryConnectLAN();
@@ -89,12 +92,12 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    public void tryConnectLAN() {
+    public void tryConnectLAN(String serverDeviceID) {
         if(!NetworkDiscovery.isConnectedToLAN) {
             Log.d(TAG, "Attempting to connect to LAN...");
             networkDiscovery.connectLAN((deviceName,ip, port) -> {
                 Log.d(TAG, "Found server at: " + ip);
-                runOnUiThread(() -> authenticateConnection.verifyConnection());
+                runOnUiThread(() -> authenticateConnection.verifyConnection(serverDeviceID));
             });
         }
         else{
@@ -121,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
     public void submitLANPIN(View v){
-        authenticateConnection.submitLANPIN();
+//        authenticateConnection.submitLANPIN();
     }
 
 

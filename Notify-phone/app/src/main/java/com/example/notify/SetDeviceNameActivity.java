@@ -7,7 +7,6 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.util.Log;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -19,6 +18,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.notify.utils.AppHelper;
+import com.example.notify.utils.Constants;
 import com.example.notify.utils.NetworkDiscovery;
 
 public class SetDeviceNameActivity extends AppCompatActivity {
@@ -28,11 +29,17 @@ public class SetDeviceNameActivity extends AppCompatActivity {
     private TextView hintText;
     private AppCompatButton setButton;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_set_device_name);
+
+        if(! new NetworkDiscovery(this).isWifiConnected()){
+            Toast.makeText(this, "You are not connected to Wi-Fi", Toast.LENGTH_SHORT).show();
+        }
+
 
         deviceNameInput = findViewById(R.id.editTextText);
         hintText = findViewById(R.id.textView);
@@ -65,12 +72,16 @@ public class SetDeviceNameActivity extends AppCompatActivity {
             } else if (name.length() > 10) {
                 Toast.makeText(this, "Name too long!", Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(this, "Device name set: " + name, Toast.LENGTH_SHORT).show();
-
-                SharedPreferences sharedPref = getSharedPreferences("Notify_shared_pref", MODE_PRIVATE);
-                sharedPref.edit().putString("deviceName", name).apply();
-                Intent intent = new Intent(this, DeviceSearchingActivity.class);
-                startActivity(intent);
+                if(! new NetworkDiscovery(this).isWifiConnected()){
+                    Toast.makeText(this, "You must be connected to Wi-Fi to move forward", Toast.LENGTH_SHORT).show();
+                }
+                else {
+                    SharedPreferences sharedPref = getSharedPreferences(Constants.PREF_NAME, MODE_PRIVATE);
+                    sharedPref.edit().putString(Constants.THIS_DEVICE_NAME, name).apply();
+                    sharedPref.edit().putString(Constants.THIS_DEVICE_ID, AppHelper.getRandomIDKeys()).apply();
+                    Intent intent = new Intent(this, DeviceSearchingActivity.class);
+                    startActivity(intent);
+                }
 
             }
         });

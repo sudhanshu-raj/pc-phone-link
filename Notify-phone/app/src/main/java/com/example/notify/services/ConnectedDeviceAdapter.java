@@ -13,16 +13,16 @@ import androidx.appcompat.widget.AppCompatButton;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.notify.R;
-import com.example.notify.utils.ConnectedDeviceModel;
+import com.example.notify.utils.ServerDeviceModel;
 
 import java.util.List;
 
 public class ConnectedDeviceAdapter extends RecyclerView.Adapter<ConnectedDeviceAdapter.ConnDeviceViewHolder> {
 
-    private List<ConnectedDeviceModel> deviceList;
+    private List<ServerDeviceModel> deviceList;
     private Context context;
 
-    public ConnectedDeviceAdapter(List<ConnectedDeviceModel> deviceList, Context context) {
+    public ConnectedDeviceAdapter(List<ServerDeviceModel> deviceList, Context context) {
         this.deviceList = deviceList;
         this.context = context;
     }
@@ -37,10 +37,10 @@ public class ConnectedDeviceAdapter extends RecyclerView.Adapter<ConnectedDevice
     @SuppressLint("SetTextI18n")
     @Override
     public void onBindViewHolder(@NonNull ConnDeviceViewHolder holder, int position) {
-        ConnectedDeviceModel device = deviceList.get(position);
+        ServerDeviceModel device = deviceList.get(position);
         holder.deviceName.setText(device.getDeviceName());
 
-        if (device.isConnected()) {
+        if (device.getConnected()) {
             holder.btnStatus.setText("Connected");
         } else {
             holder.btnStatus.setText("Disconnected");

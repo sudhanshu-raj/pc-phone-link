@@ -17,11 +17,15 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.notify.interfaces.ApiService;
 import com.example.notify.services.ApiClient;
+import com.example.notify.services.AuthenticateConnection;
+import com.example.notify.services.MDNSDiscovery;
 import com.example.notify.services.ScannedDeviceAdapter;
+import com.example.notify.utils.Constants;
 import com.example.notify.utils.NetworkDiscovery;
 import com.example.notify.utils.ScannedDeviceModel;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,27 +56,44 @@ public class DeviceSearchingActivity extends AppCompatActivity {
         devicesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         devicesRecyclerView.setAdapter(scannedDeviceAdapter);
 
-        sharedPref = getSharedPreferences("Notify_shared_pref", MODE_PRIVATE);
+        sharedPref = getSharedPreferences(Constants.PREF_NAME, MODE_PRIVATE);
 
         // START THE SERVER HERE
-        networkDiscovery = new NetworkDiscovery(this);
-        networkDiscovery.connectLAN((serverDeviceName,ip,port) -> {
+        MDNSDiscovery.OnServiceFoundListener listener = (serverDeviceName,ip,port) -> {
             Log.d(TAG, "Found  the device on LAN with IP: " + serverDeviceName + " at: " + ip + ":" + port);
 
             //Inform the server device that I found you on LAN
             String baseURL = "http://" + ip + ":" + port + "/api/v1/";
             ApiService api = ApiClient.getService(baseURL);
             Log.d(TAG, "Sending phonesFound request to: " + baseURL);
-            String thisDeviceName = sharedPref.getString("deviceName", null);
+            String thisDeviceName = sharedPref.getString(Constants.THIS_DEVICE_NAME, null);
             if(thisDeviceName != null){
                 Map<String,String>  body = new HashMap<>();
                 body.put("deviceName", thisDeviceName);
                 body.put("phoneIP",networkDiscovery.getPhoneIP());
+                body.put("deviceID",sharedPref.getString(Constants.THIS_DEVICE_ID, null));
 
                 api.phonesFound(body).enqueue(new Callback<Map<String, Object>>(){
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                         Log.d(TAG, "Sent phonesFound request");
+                        Map<String, Object> result = response.body();
+                        if(result != null && result.get("status") != null && result.get("status").equals("success")){
+                            String serverDeviceID = (String) result.get("serverDeviceID");
+                            HashMap<String,Object> deviceInfo = new HashMap<>();
+                            deviceInfo.put(Constants.KEY_DEVICE_ID,serverDeviceID);
+                            deviceInfo.put(Constants.KEY_DEVICE_NAME,serverDeviceName);
+                            deviceInfo.put(Constants.KEY_DEVICE_IP,ip);
+                            deviceInfo.put(Constants.KEY_HTTP_PORT,port);
+                            deviceInfo.put(Constants.KEY_LAST_SEEN,new Date());
+                            new AuthenticateConnection(DeviceSearchingActivity.this).storeDeviceData(serverDeviceID,deviceInfo);
+                        }
+                        else{
+                            Log.d(TAG, "Error sending phonesFound request: " + result.get("message"));
+
+
+                        }
+
                     }
 
                     @Override
@@ -83,13 +104,15 @@ public class DeviceSearchingActivity extends AppCompatActivity {
             }
             else{
                 Log.d(TAG, "Device name is null, can't send phonesFound request");
-                }
-            
+            }
+
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
                 addDevice(serverDeviceName, false);
             }, 2000);
 
-        });
+        };
+        networkDiscovery = new NetworkDiscovery(listener,this);
+        networkDiscovery.register();
 
 
 

@@ -2,6 +2,7 @@ package com.example.notify;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -106,6 +107,8 @@ public class PIN_VerificationActivity extends AppCompatActivity {
         authenticateConnection.authenticateLAN(pin, apiService, isAuthenticated -> {
             if (isAuthenticated) {
                 Toast.makeText(this, "Connection Successful!", Toast.LENGTH_SHORT).show();
+                SharedPreferences sharedPreferences = getSharedPreferences("Notify_shared_pref", Context.MODE_PRIVATE);
+                sharedPreferences.edit().putBoolean("isDeviceSetup",true).apply();
                 Intent intent = new Intent(this, ConnectedDeviceListActivity.class);
                 startActivity(intent);
             } else {

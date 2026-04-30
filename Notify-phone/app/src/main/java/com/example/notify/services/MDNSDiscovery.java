@@ -64,9 +64,6 @@ public class MDNSDiscovery {
                                 }
                             }
                             String deviceName = service.getServiceName();
-//                            if(ip == null || !ip.equals(ipFromName)){
-//                                Log.d(TAG,"Wi-fi IP not matching between  ip from service name and ip from the service host address");
-//                            }
 
                             int port = serviceInfo.getPort();
                             Log.d(TAG, "Resolved: " + ip + ":" + port);

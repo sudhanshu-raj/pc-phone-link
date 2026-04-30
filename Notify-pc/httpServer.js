@@ -45,11 +45,9 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
   app.post("/generatePIN", (req, res) => {
     try {
       const { deviceName, phoneIP } = req.body;
-      console.log("Got the pin generation request from device :", deviceName);
 
       const deviceID = utils.generateKeys();
       const pin = Math.floor(1000 + Math.random() * 9000);
-      console.log("PIN for ", deviceName, " ,is:", pin); // WILL ERASE THIS
 
       const existingDevice = Object.entries(scannedDevicesInfo || {}).find(
         ([, d]) => d.deviceName === deviceName,
@@ -65,6 +63,7 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
           return res.json({
             status: "success",
             deviceID: existingDeviceId,
+            serverDeviceName : store.get("thisDeviceName")?store.get("thisDeviceName"):"NULL"
           });
         }
       }
@@ -89,6 +88,8 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
       return res.json({
         status: "success",
         deviceID: deviceID,
+        serverDeviceName : store.get("thisDeviceName")?store.get("thisDeviceName"):"NULL"
+
       });
     } catch (error) {
       console.error("Error in /generatePIN route:", error);
@@ -150,10 +151,12 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
       if(onAuthenticationSuccess){
         onAuthenticationSuccess();
       }
+      const wsport = await utils.getWebSocketPort();
+      console.log("websocket port sending:",wsport," & it has type :",typeof(wsport))
       return res.json({
         status: "success",
         token: token,
-        webSocketURL: await utils.getWebSocketURL(),
+        webSocketPort: wsport,
       });
     } catch (error) {
       console.error("Error in /authenticateLAN route:", error);

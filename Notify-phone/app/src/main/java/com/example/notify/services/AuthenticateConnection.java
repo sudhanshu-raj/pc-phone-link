@@ -3,15 +3,16 @@ package com.example.notify.services;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.os.Build;
-import android.provider.Settings;
 import android.util.Log;
-import android.widget.EditText;
 
-import com.example.notify.R;
 import com.example.notify.interfaces.ApiService;
+import com.example.notify.utils.ServerDeviceModel;
+import com.example.notify.utils.Constants;
 import com.example.notify.utils.NetworkDiscovery;
 
+import com.google.gson.Gson;
+
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -36,13 +37,14 @@ public class AuthenticateConnection {
     OkHttpClient okHttpClient = new OkHttpClient();
     public static WebSocket ws = null;
     public static boolean isLANConAuthenticated = false;
+    public static String thisDeviceID = null;
 
     public AuthenticateConnection(Context context) {
         this.context = context;
-        this.sharedPref = context.getSharedPreferences("Notify_shared_pref", Context.MODE_PRIVATE);
+        this.sharedPref = context.getSharedPreferences(Constants.PREF_NAME, Context.MODE_PRIVATE);
     }
 
-    public void verifyConnection(){
+    public void verifyConnection(String serverDeviceID){
         Log.d(TAG, "Verifying connection...");
         if(!NetworkDiscovery.isConnectedToLAN){
             Log.d(TAG, "Not connected to LAN, cannot authenticate");
@@ -55,18 +57,18 @@ public class AuthenticateConnection {
 
         ApiService api = ApiClient.getService(getBaseURL());
 
-        String token = getDeviceToken();
+        ServerDeviceModel serverInfo = getSavedDeviceData(serverDeviceID);
+        if(serverInfo == null || serverInfo.getToken() == null){
+            Log.d(TAG, "Invalid request, cannot authenticate");
+            return;
+        }
+
+        String token = serverInfo.getToken();
         String deviceID = sharedPref.getString("deviceID", null);
-        if(token != null && deviceID != null){
-            // Device has token, so verify that it is valid or not
-            Log.d(TAG, "Device has token, so verify that it is valid or not");
-            verifyToken(token,deviceID, api);
-        }
-        else{
-            // Device has no token, so it must authenticate via PIN first
-            Log.d(TAG, "Device has no token, so it must authenticate via PIN first");
-            generatePIN(api);
-        }
+
+        verifyToken(token,deviceID, api);
+
+
     }
 
     private void verifyToken(String token, String deviceID,ApiService api){
@@ -86,7 +88,7 @@ public class AuthenticateConnection {
                          isTokenValid = true;
                          webSocketURL = (String) result.get("webSocketURL");
                          isLANConAuthenticated = true;
-                         startWebSocket(webSocketURL);
+                         startWebSocket(webSocketURL,deviceID);
                      }
                      else{
                          Log.d(TAG, Objects.requireNonNull(result.get("message")).toString());
@@ -109,8 +111,7 @@ public class AuthenticateConnection {
     public void generatePIN(ApiService api){
         try{
         Map<String, Object> body = new HashMap<>();
-
-        body.put("deviceName", sharedPref.getString("deviceName", null));
+        body.put("deviceName", sharedPref.getString("thisDeviceName", null));
         body.put("phoneIP",new NetworkDiscovery(context).getPhoneIP());
         api.generatePIN(body).enqueue(new Callback<Map<String, Object>>() {
 
@@ -120,7 +121,10 @@ public class AuthenticateConnection {
                 if(result != null && result.get("status") != null && result.get("status").equals("success")){
                     Log.d(TAG, "PIN generated successfully");
                     String deviceID = (String) result.get("deviceID");
-                    sharedPref.edit().putString("deviceID", deviceID).apply();
+                    thisDeviceID = deviceID;
+                    HashMap<String,Object> deviceInfo = new HashMap<>();
+                    deviceInfo.put(Constants.KEY_LAST_SEEN,new Date());
+                    storeDeviceData(deviceID,deviceInfo);
                 }
                 else{
                     Log.d(TAG, Objects.requireNonNull(result.get("message")).toString());
@@ -138,25 +142,11 @@ public class AuthenticateConnection {
         }
 
     }
-    public void submitLANPIN(){
-        try {
-            ApiService api = ApiClient.getService(getBaseURL());
-            String pinInput = getPINInput();
-            if(pinInput != null) {
-                authenticateLAN(pinInput, api, isAuthenticated -> {});
-            }
-            else{
-                Log.d(TAG, "PIN input is null");
-            }
-        }
-        catch (Exception e){
-            Log.d(TAG, "Exception : " + e.getMessage());
-        }
-    }
+
     public void authenticateLAN(String pinInput, ApiService api, GetAuthenticateResponse callback){
         Map<String, Object> body = new HashMap<>();
         body.put("pin", pinInput);
-        body.put("deviceID",getDeviceID());
+        body.put("deviceID",getThisDeviceID());
 
         api.authenticateLAN(body).enqueue(new Callback<Map<String, Object>>() {
             @Override
@@ -164,13 +154,28 @@ public class AuthenticateConnection {
                 Map<String,Object> result = response.body();
                 if(result != null && result.get("status") != null && result.get("status").equals("success")){
                     Log.d(TAG, "Authentication successful");
-                    String token = (String) result.get("token");
-                    sharedPref.edit().putString("token", token).apply(); //HERE WE SHOULD PUT THIS IN ENCRYPTED FORMAT
                     isTokenValid = true;
-                    webSocketURL = (String) result.get("webSocketURL");
-                    startWebSocket(webSocketURL);
                     isLANConAuthenticated = true;
+                    String token = (String) result.get("token");
+                    
+                    // Safely handle Double-to-Integer conversion from GSON
+                    Object wsPortObj = result.get("webSocketPort");
+                    Integer wsPort = (wsPortObj instanceof Number) ? ((Number) wsPortObj).intValue() : null;
+                    String serverDeviceID = (String) result.get("serverDeviceID");
+
+                    HashMap<String,Object> deviceInfo = new HashMap<>();
+                    deviceInfo.put(Constants.KEY_TOKEN,token);
+                    deviceInfo.put(Constants.KEY_WS_PORT,wsPort);
+                    deviceInfo.put(Constants.KEY_LAST_SEEN,new Date());
+                    deviceInfo.put(Constants.KEY_IS_CONNECTED,true);
+                    storeDeviceData(serverDeviceID,deviceInfo);
+
+                    sharedPref.edit().putBoolean("isDeviceSetup",true).apply();
+                    webSocketURL = "ws://" + NetworkDiscovery.serverIP + ":" + wsPort ;
+                    startWebSocket(webSocketURL,serverDeviceID);
+
                     callback.onResponse(true);
+
                 }
                 else{
                     Log.d(TAG, Objects.requireNonNull(result.get("message")).toString());
@@ -186,54 +191,78 @@ public class AuthenticateConnection {
         });
     }
 
-    private void startWebSocket(String url) {
-        String token = getDeviceToken();
-        if(token == null){
-            Log.d(TAG, "Token is null, cannot start WebSocket");
+    private void startWebSocket(String url,String serverDeviceID) {
+        ServerDeviceModel serverInfo = getSavedDeviceData(serverDeviceID);
+        if(serverInfo == null || serverInfo.getToken() == null){
+            Log.d(TAG, "Invalid request, cannot start WebSocket");
             return;
         }
         Request request = new Request.Builder()
                 .url(url)
-                .addHeader("Authorization",token)
+                .addHeader("Authorization",serverInfo.getToken())
                 .build();
 
         ws = okHttpClient.newWebSocket(request, new WebSocketService((Activity) context));
-        Log.d(TAG, "WebSocket started on URL: " + url);
+        Log.d(TAG, "WebSocket client started on URL: " + url);
 
         // Optional: Trigger shutdown of the dispatcher when finished to avoid memory leaks
         // client.dispatcher().executorService().shutdown();
     }
 
-    public String getPINInput(){
 
-        EditText pinInput = (EditText) ((Activity) context).findViewById(R.id.PNINPTXT);
-        return pinInput.getText().toString();
-    }
-
-    public String getDeviceName(){
+    public void storeDeviceData(String deviceId, HashMap<String,Object> data) {
         try {
-            String manufacturer = Build.MANUFACTURER;
-            String model = Build.MODEL;
-            String deviceName = manufacturer + " " + model;
-
-            String userDeviceName = Settings.Global.getString(context.getContentResolver(), Settings.Global.DEVICE_NAME);
-            if (userDeviceName == null) {
-                userDeviceName = Settings.Secure.getString(context.getContentResolver(), "bluetooth_name");
+            ServerDeviceModel deviceInfo = getSavedDeviceData(deviceId);
+            if (deviceInfo == null) {
+                deviceInfo = new ServerDeviceModel();
             }
-            return deviceName + "-" + userDeviceName;
+
+            for (String key : data.keySet()) {
+                switch (key) {
+                    case Constants.KEY_DEVICE_NAME:
+                        deviceInfo.setDeviceName((String) data.get(key));
+                        break;
+                    case Constants.KEY_DEVICE_ID:
+                        deviceInfo.setDeviceID((String) data.get(key));
+                        break;
+                    case Constants.KEY_DEVICE_IP:
+                        deviceInfo.setDeviceIP((String) data.get(key));
+                        break;
+                    case Constants.KEY_IS_CONNECTED:
+                        deviceInfo.setConnected((Boolean) data.get(key));
+                        break;
+                    case Constants.KEY_HTTP_PORT:
+                        Object httpPortObj = data.get(key);
+                        deviceInfo.setHttpPort(httpPortObj instanceof Number ? ((Number) httpPortObj).intValue() : null);
+                        break;
+                    case Constants.KEY_WS_PORT:
+                        Object wsPortObj = data.get(key);
+                        deviceInfo.setWsPort(wsPortObj instanceof Number ? ((Number) wsPortObj).intValue() : null);
+                        break;
+                    case Constants.KEY_LAST_SEEN:
+                        deviceInfo.setLastSeen((Date) data.get(key));
+                        break;
+                }
+            }
+            Gson gson = new Gson();
+            String json = gson.toJson(deviceInfo);
+
+            sharedPref.edit().putString(("ID"+deviceId), json).apply();
         }
         catch (Exception e){
-            Log.d(TAG, "Exception : " + e.getMessage());
-            return null;
+            Log.e(TAG,"Error while storing device data"+e.getMessage());
         }
     }
 
-    public String getDeviceID(){
-        return sharedPref.getString("deviceID", null);
+    public ServerDeviceModel getSavedDeviceData(String deviceId) {
+        String json = sharedPref.getString("ID" + deviceId, null);
+        if (json == null) return null;
+
+        return new Gson().fromJson(json, ServerDeviceModel.class);
     }
 
-    public String getDeviceToken(){
-        return sharedPref.getString("token",null);
+    public String getThisDeviceID(){
+        return sharedPref.getString(Constants.THIS_DEVICE_ID, null);
     }
 
 

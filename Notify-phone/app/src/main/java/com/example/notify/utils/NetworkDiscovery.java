@@ -28,9 +28,18 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
 
     // Track which transports are currently active to handle onLost correctly
     private final Set<Integer> activeTransports = new HashSet<>();
-    public static boolean isConnectedToLAN;
+    public static boolean isConnectedToLAN= false;
+    private static boolean isSearching = false; // Add this to prevent double-starts
+    private  boolean isAuthenticationRequired;
+    private MDNSDiscovery.OnServiceFoundListener listener;
 
     public NetworkDiscovery(Context context) {
+        this.context = context;
+        this.cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+
+    }
+    public NetworkDiscovery(MDNSDiscovery.OnServiceFoundListener listener,Context context) {
+        this.listener = listener;
         this.context = context;
         this.cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
 
@@ -53,24 +62,23 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
     }
 
     public boolean isWifiConnected() {
-        Network network = cm.getActiveNetwork();
-        boolean isWifi = false;
-        if (network != null) {
+        for (Network network : cm.getAllNetworks()) {
             NetworkCapabilities caps = cm.getNetworkCapabilities(network);
-            isWifi = caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI);
+            if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                return true;
+            }
         }
-        return isWifi;
+        return false;
     }
 
     public boolean isCellularConnected() {
-        Network network = cm.getActiveNetwork();
-        boolean isCellular = false;
-        if (network != null) {
+        for (Network network : cm.getAllNetworks()) {
             NetworkCapabilities caps = cm.getNetworkCapabilities(network);
-            isCellular = caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR);
-
+            if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+                return true;
+            }
         }
-        return isCellular;
+        return false;
     }
 
     @Override
@@ -81,8 +89,11 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
         if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
             Log.d(TAG, "WiFi available");
             activeTransports.add(NetworkCapabilities.TRANSPORT_WIFI);
-            if(!isConnectedToLAN) {
+            if(!isConnectedToLAN && isAuthenticationRequired) {
                 connectLAN();
+            }
+            else if(!isConnectedToLAN && !isAuthenticationRequired){
+                connectLAN(listener);
             }
 
         }
@@ -116,8 +127,7 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
         if(!isConnectedToLAN){
             Log.d(TAG,"Connecting the LAN Server...");
             connectLAN((serverDeviceName,ip, port) -> {
-                Log.d(TAG, "Connected to the device of LAN with IP: " + serverDeviceName + " at: " + ip + ":" + port);
-                new Handler(Looper.getMainLooper()).post(() -> new AuthenticateConnection(context).verifyConnection());
+                Log.d(TAG, "Connected to the server of LAN with IP: " + serverDeviceName + " at: " + ip + ":" + port);
             });
         }
         else{
@@ -130,6 +140,13 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
             Log.d(TAG,"Wi-Fi not connected");
             return;
         }
+        
+        if (isSearching || isConnectedToLAN) {
+            Log.d(TAG, "Search already in progress or already connected");
+            return;
+        }
+
+        isSearching = true;
         activeTransports.add(NetworkCapabilities.TRANSPORT_WIFI);
 
         MDNSDiscovery mdnsDiscovery = new MDNSDiscovery(context);
@@ -140,6 +157,7 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
                 httpPort = port;
                 serverDeviceName = deviceName;
                 isConnectedToLAN = true;
+                isSearching = false; // Reset flag when found
                 Log.d(TAG,"Now the discovery got done with ip: " + serverIP + " and port: " + httpPort );
 
                 if (listener != null) {
