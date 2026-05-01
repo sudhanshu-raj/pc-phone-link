@@ -19,7 +19,7 @@ setBtn.addEventListener('click', () => {
     if (deviceName) {
         console.log('Setting device name:', deviceName);
         window.windowAPI.setDeviceName(deviceName);
-        window.windowAPI.openDeviceScanWindow();
+        window.windowAPI.openDeviceScanWindowFromSetup();
   
     }
 });

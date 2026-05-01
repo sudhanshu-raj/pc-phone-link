@@ -132,6 +132,21 @@ async function startAppServices() {
   }
 }
 
+ipcMain.handle("store:get", (_event, key) => {
+  return store.get(key);
+});
+
+ipcMain.handle("store:set", (_event, key, value) => {
+  store.set(key, value);
+  return true;
+});
+
+ipcMain.handle("store:list-ids", () =>{
+  return Object.entries(store.store)
+  .filter(([k]) => k.startsWith("ID"))
+  .reduce((obj, [k, v]) => ({ ...obj, [k]: v }), {});
+})
+
 function buildServiceName(lanIp) {
   if (!lanIp) {
     return SERVICE_NAME;
@@ -215,13 +230,15 @@ app.whenReady().then(() => {
     console.log("Message from send-mssg,", key, ":", value);
   });
 
-  ipcMain.on("enable-device-scan-win", (event) => {
+  //important listener for startup device case
+  ipcMain.on("enable-device-scan-win-from-setup", (event) => {
     const deviceScanWindow = switchWindow(createDeviceScanWindow, event);
 
     if (deviceScanWindow) {
       deviceScanWindow.webContents.once("did-finish-load", () => {
         deviceScanWindow.webContents.send("device-name", deviceNameValue);
         store.set("thisDeviceName", deviceNameValue);
+        store.set("thisDeviceID",utils.generateKeys())
         if (!isServerStarted) {
           startAppServices();
         }

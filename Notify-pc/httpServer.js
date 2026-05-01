@@ -5,7 +5,7 @@ const utils = require("./utils");
 
 const store = new Store();
 
-let scannedDevicesInfo = {};
+let scannedClientDevicesInfo = {};
 
 async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticationSuccess } = {}) {
   const HTTP_PORT = await utils.getHTTP_PORT();
@@ -29,13 +29,20 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
 
   app.post("/phonesFound", (req, res) => {
     try {
-      const { deviceName, phoneIP } = req.body;
+      const { clientDeviceName, clientDeviceIP, clientDeviceID } = req.body;
       if (onPhoneFound) {
-        onPhoneFound({ deviceName, ip: phoneIP });
+        onPhoneFound({ deviceName:clientDeviceName, ip: clientDeviceIP });
       }
-      console.log("found the device:", deviceName, "ip:", phoneIP);
+      console.log("found the device:", clientDeviceName, "ip:", clientDeviceIP);
+      scannedClientDevicesInfo[clientDeviceID] = {
+        deviceName : "ID"+clientDeviceName,
+        isConnected : false,
+        deviceIP : clientDeviceIP,
+        lastSeen : Date.now()
+      }
       return res.json({
         status: "success",
+        serverDeviceID : store.get("thisDeviceID")?store.get('thisDeviceID'):"UNKNOWN"
       });
     } catch (error) {
       console.log("Error in /phonesFound:", error);
@@ -44,42 +51,32 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
 
   app.post("/generatePIN", (req, res) => {
     try {
-      const { deviceName, phoneIP } = req.body;
+      const { clientDeviceID } = req.body;
 
-      const deviceID = utils.generateKeys();
       const pin = Math.floor(1000 + Math.random() * 9000);
-
-      const existingDevice = Object.entries(scannedDevicesInfo || {}).find(
-        ([, d]) => d.deviceName === deviceName,
-      );
-      const existingDeviceId = existingDevice?.[0];
-      const existingDeviceData = existingDevice?.[1];
-
+      const existingDeviceData = scannedClientDevicesInfo[clientDeviceID];
+    
       // If device already found, so probably pin got genereated for it already
-      if (existingDeviceId && existingDeviceData) {
+      if (existingDeviceData && existingDeviceData.pin) {
         const olderPinGeneratedTime =
           existingDeviceData.pinGeneratedOn + utils.PIN_EXPIRE_TIME * 60 * 1000;
         if (Date.now() <= olderPinGeneratedTime) {
           return res.json({
             status: "success",
-            deviceID: existingDeviceId,
-            serverDeviceName : store.get("thisDeviceName")?store.get("thisDeviceName"):"NULL"
+            deviceID: store.get("thisDeviceID"),
           });
         }
       }
 
       const info = {
-        deviceName: deviceName,
         pin: pin,
         pinGeneratedOn: Date.now(),
-        status: utils.status.PENDING,
-        isAuthenticated: false,
-        meta: {
-          ip: phoneIP,
-          lastSeen: Date.now(),
-        },
+        lastSeen: Date.now(),
       };
-      scannedDevicesInfo[deviceID] = info;
+      scannedClientDevicesInfo[clientDeviceID] = {
+        ...(scannedClientDevicesInfo[clientDeviceID] || {}),
+        ...info
+      };
 
       //new pin got generated, now move to verify pin window
       if (onNewPINGenerated) {
@@ -87,9 +84,7 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
       }
       return res.json({
         status: "success",
-        deviceID: deviceID,
-        serverDeviceName : store.get("thisDeviceName")?store.get("thisDeviceName"):"NULL"
-
+        deviceID: store.get("thisDeviceID"),
       });
     } catch (error) {
       console.error("Error in /generatePIN route:", error);
@@ -103,10 +98,10 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
 
   app.post("/authenticateLAN", async (req, res) => {
     try {
-      const { pin, deviceID } = req.body;
-      console.log("Got the pin:", pin, ", from device:", deviceID); // ERASE THIS
+      const { pin, clientDeviceID } = req.body;
+      console.log("Got the pin:", pin, ", from device:", clientDeviceID); // ERASE THIS
 
-      if (!scannedDevicesInfo[deviceID] || !scannedDevicesInfo[deviceID]?.pin) {
+      if (!scannedClientDevicesInfo[clientDeviceID] || !scannedClientDevicesInfo[clientDeviceID]?.pin) {
         return res.json({
           status: "failed",
           failureType: utils.failureType.INVALID_DATA,
@@ -114,8 +109,8 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
         });
       }
 
-      const originalPin = scannedDevicesInfo[deviceID]?.pin;
-      const pinGeneratedOn = scannedDevicesInfo[deviceID]?.pinGeneratedOn;
+      const originalPin = scannedClientDevicesInfo[clientDeviceID]?.pin;
+      const pinGeneratedOn = scannedClientDevicesInfo[clientDeviceID]?.pinGeneratedOn;
       if (!pinGeneratedOn) {
         return res.json({
           status: "failed",
@@ -140,13 +135,13 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
         });
       }
 
-      scannedDevicesInfo[deviceID].isAuthenticated = true;
-      scannedDevicesInfo[deviceID].meta.lastSeen = Date.now();
+      scannedClientDevicesInfo[clientDeviceID].isConnected = true;
+      scannedClientDevicesInfo[clientDeviceID].lastSeen = Date.now();
       const token = utils.generateKeys(20);
-      store.set(deviceID, {
-        ...scannedDevicesInfo[deviceID],
+      store.set(("ID"+clientDeviceID), {
+        ...scannedClientDevicesInfo[clientDeviceID],
         token: token,
-        isAuthenticated: true,
+        isSelected : true
       });
       if(onAuthenticationSuccess){
         onAuthenticationSuccess();
@@ -215,5 +210,5 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
 
 module.exports = {
   createHttpServer,
-  scannedDevicesInfo,
+  scannedDevicesInfo: scannedClientDevicesInfo,
 };
