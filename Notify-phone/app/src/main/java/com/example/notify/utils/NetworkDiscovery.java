@@ -29,20 +29,20 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
     // Track which transports are currently active to handle onLost correctly
     private final Set<Integer> activeTransports = new HashSet<>();
     public static boolean isConnectedToLAN= false;
-    private static boolean isSearching = false; // Add this to prevent double-starts
-    private  boolean isAuthenticationRequired;
+    private static boolean isSearching = false; 
+    private boolean isAuthenticationRequired;
     private MDNSDiscovery.OnServiceFoundListener listener;
+    private MDNSDiscovery activeMdnsDiscovery; // Track the current discovery session
 
     public NetworkDiscovery(Context context) {
         this.context = context;
         this.cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-
     }
+
     public NetworkDiscovery(MDNSDiscovery.OnServiceFoundListener listener,Context context) {
         this.listener = listener;
         this.context = context;
         this.cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-
     }
 
     public void register() {
@@ -55,10 +55,20 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
 
     public void unregister() {
         try {
+            stopMdnsDiscovery();
             cm.unregisterNetworkCallback(this);
         } catch (Exception e) {
             Log.e(TAG, "Error unregistering network callback", e);
         }
+    }
+
+    private void stopMdnsDiscovery() {
+        if (activeMdnsDiscovery != null) {
+            Log.d(TAG, "Stopping active MDNS discovery");
+            activeMdnsDiscovery.stopDiscovery();
+            activeMdnsDiscovery = null;
+        }
+        isSearching = false;
     }
 
     public boolean isWifiConnected() {
@@ -149,24 +159,34 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
         isSearching = true;
         activeTransports.add(NetworkCapabilities.TRANSPORT_WIFI);
 
-        MDNSDiscovery mdnsDiscovery = new MDNSDiscovery(context);
+        // Track this instance so we can stop it later
+        activeMdnsDiscovery = new MDNSDiscovery(context);
 
         try {
-            mdnsDiscovery.startDiscovery((deviceName,ip, port) -> {
+            activeMdnsDiscovery.startDiscovery((deviceName,ip, port) -> {
                 serverIP = ip;
                 httpPort = port;
                 serverDeviceName = deviceName;
                 isConnectedToLAN = true;
-                isSearching = false; // Reset flag when found
-                Log.d(TAG,"Now the discovery got done with ip: " + serverIP + " and port: " + httpPort );
+                
+                // If we're not in a "Searching Activity" means listener == null,
+                // then should stop discovery immediately to save power/prevent duplicates.
+                if (listener == null) {
+                    stopMdnsDiscovery();
+                } else {
+                    isSearching = false; 
+                }
+
+                Log.d(TAG,"Now the discovery got done with ip: " + ip + " and port: " + port );
 
                 if (listener != null) {
-                    listener.onServiceFound(deviceName,ip, port);
+                    listener.onServiceFound(deviceName, ip, port);
                 }
             });
         }
         catch (Exception e){
-            Log.d(TAG, "Exception : " + e.getMessage());
+            Log.e(TAG, "Exception during MDNS start", e);
+            isSearching = false;
         }
     }
 

@@ -1,6 +1,7 @@
 package com.example.notify.services;
 
 import android.app.Activity;
+import android.content.Context;
 import android.util.Log;
 import android.widget.TextView;
 
@@ -16,8 +17,10 @@ public class WebSocketService extends WebSocketListener {
 
 
     private Activity activity;
-    public WebSocketService(Activity activity)  {
-        this.activity = activity;
+    public WebSocketService(Context context)  {
+        if (context instanceof Activity) {
+            this.activity = (Activity) context;
+        }
     }
 
     @Override
@@ -29,12 +32,14 @@ public class WebSocketService extends WebSocketListener {
     @Override
     public void onMessage(WebSocket webSocket, String text) {
         Log.d(TAG,"From PC: " + text);
-        activity.runOnUiThread(() -> {
-            TextView tv2 = activity.findViewById(R.id.txtOutput);
-            if (tv2 != null) {
-                tv2.setText(text);
-            }
-        });
+        if (activity != null) {
+            activity.runOnUiThread(() -> {
+                TextView tv2 = activity.findViewById(R.id.txtOutput);
+                if (tv2 != null) {
+                    tv2.setText(text);
+                }
+            });
+        }
     }
 
     @Override

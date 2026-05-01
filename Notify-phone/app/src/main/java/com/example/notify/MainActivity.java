@@ -3,6 +3,7 @@ package com.example.notify;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
@@ -12,10 +13,8 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import com.example.notify.services.AuthenticateConnection;
 import com.example.notify.services.MyNotificationListener;
@@ -26,91 +25,102 @@ import okhttp3.WebSocket;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String  TAG = "Notifi:MainActivity";
-    private static final String MDNS_tag = "MDNSDiscovery";
-    private String serverIP;
-
-    OkHttpClient client = new OkHttpClient();
-    AuthenticateConnection authenticateConnection;
-    NetworkDiscovery networkDiscovery;
-    WebSocket ws;
-    SharedPreferences sharedPreferences;
+    private static final String TAG = "Notifi:MainActivity";
+    private SharedPreferences sharedPreferences;
+    private AuthenticateConnection authenticateConnection;
+    private NetworkDiscovery networkDiscovery;
+    private OkHttpClient client = new OkHttpClient();
+    private WebSocket ws;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_main);
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
-
-        //to keep screen awake , useful for dev
+         getSharedPreferences("Notify_shared_pref", MODE_PRIVATE).edit().clear().apply();
+        // Keep screen awake for development
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         authenticateConnection = new AuthenticateConnection(this);
         networkDiscovery = new NetworkDiscovery(this);
         sharedPreferences = getSharedPreferences("Notify_shared_pref", MODE_PRIVATE);
+    }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Check permissions and setup in onResume so it re-triggers when returning from Settings
+        checkPermissionsAndSetup();
+    }
 
-        // Check if the service is enabled
+    private void checkPermissionsAndSetup() {
+        if (!isNotificationServiceEnabled()) {
+            Log.d(TAG, "Notification listener service not enabled, showing dialog");
+            showNotificationPermissionDialog();
+        } else {
+            Log.d(TAG, "Notification listener service is enabled");
+            rebindService();
+            
+            // ONLY proceed to Setup Instructions if notification permission is granted
+            if (!sharedPreferences.getBoolean("isDeviceSetup", false)) {
+                Log.d(TAG, "Device not setup, launching instructions");
+                Intent intent = new Intent(this, SetupInstructionsActivity.class);
+                startActivity(intent);
+            } else {
+                Log.d(TAG, "Device already setup, attempting auto-reconnect");
+                authenticateConnection.reconnectLastDevice();
+                Intent intent = new Intent(this, ConnectedDeviceListActivity.class);
+                startActivity(intent);
+            }
+        }
+    }
+
+    private boolean isNotificationServiceEnabled() {
         ComponentName cn = new ComponentName(this, MyNotificationListener.class);
-        String flat = Settings.Secure.getString(this.getContentResolver(), "enabled_notification_listeners");
-        boolean isEnabled = flat != null && flat.contains(cn.flattenToString());
+        String flat = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
+        return flat != null && flat.contains(cn.flattenToString());
+    }
 
-        if (!isEnabled) {
-            // Take user to the settings screen
-            Log.d(TAG,"Notification listener service not enabled, try enabling it");
-            this.startActivity(new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));
-        }
+    private void showNotificationPermissionDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("Notification Access Required")
+                .setMessage("To sync notifications to your PC, this app needs 'Notification Access'. Please enable it for 'My Notification Sync App' in the settings.")
+                .setPositiveButton("Go to Settings", (dialog, which) -> {
+                    startActivity(new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));
+                })
+                .setNegativeButton("Not Now", (dialog, which) -> {
+                    Toast.makeText(this, "Notification sync will not work without this permission.", Toast.LENGTH_LONG).show();
+                })
+                .setCancelable(false)
+                .show();
+    }
 
-        if(!sharedPreferences.getBoolean("isDeviceSetup", false)){
-            Log.d(TAG,"Device not setup, try setting it up");
-            Intent intent = new Intent(this, SetupInstructionsActivity.class);
-            startActivity(intent);
+    /**
+     * Workaround for "Service not registered" IllegalArgumentException.
+     * Uses the official requestRebind API.
+     */
+    private void rebindService() {
+        try {
+            ComponentName cn = new ComponentName(this, MyNotificationListener.class);
+            MyNotificationListener.requestRebind(cn);
+            Log.d(TAG, "NotificationListenerService rebind requested via API");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to rebind service", e);
         }
-        else{
-            Log.d(TAG,"Device already setup");
-//            if(authenticateConnection.isLANConAuthenticated)
-            Intent intent = new Intent(this, ConnectedDeviceListActivity.class);
-            startActivity(intent);
-//            if(networkDiscovery.isWifiConnected()) {
-//                try{
-//                    tryConnectLAN();
-//                }
-//                catch (Exception e){
-//                    Log.d(TAG, "Exception : " + e.getMessage());
-//                }
-//            }
-//            else{
-//                Log.d(TAG,"Client not connected to wifi, try on Cellular connection");
-//            }
-        }
-
     }
 
     public void tryConnectLAN(String serverDeviceID) {
-        if(!NetworkDiscovery.isConnectedToLAN) {
+        if (!NetworkDiscovery.isConnectedToLAN) {
             Log.d(TAG, "Attempting to connect to LAN...");
-            networkDiscovery.connectLAN((deviceName,ip, port) -> {
+            networkDiscovery.connectLAN((deviceName, ip, port) -> {
                 Log.d(TAG, "Found server at: " + ip);
                 runOnUiThread(() -> authenticateConnection.verifyConnection(serverDeviceID));
             });
         }
-        else{
-            Log.d(TAG, "Already connected to LAN");
-        }
     }
 
-    public void sendMsg(View v){
-        // For testing purposes, launch SetupInstructions activity
-        Intent intent = new Intent(this, SetupInstructionsActivity.class);
-        startActivity(intent);
-
-        if(AuthenticateConnection.isLANConAuthenticated) {
+    public void sendMsg(View v) {
+        if (AuthenticateConnection.isLANConAuthenticated) {
             Log.d(TAG, "Sending message...");
             EditText txt = findViewById(R.id.sendMsgInp);
             String msg = txt.getText().toString();
@@ -118,20 +128,14 @@ public class MainActivity extends AppCompatActivity {
             if (ws != null) {
                 ws.send(msg);
             }
-        }
-        else{
+        } else {
             Toast.makeText(this, "Wifi not connected or not authenticated", Toast.LENGTH_SHORT).show();
         }
     }
-    public void submitLANPIN(View v){
-//        authenticateConnection.submitLANPIN();
-    }
-
 
     @Override
-    public void onDestroy(){
+    protected void onDestroy() {
         super.onDestroy();
         networkDiscovery.unregister();
     }
-
 }

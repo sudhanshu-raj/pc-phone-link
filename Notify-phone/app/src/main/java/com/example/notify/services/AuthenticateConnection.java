@@ -37,8 +37,6 @@ public class AuthenticateConnection {
     OkHttpClient okHttpClient = new OkHttpClient();
     public static WebSocket ws = null;
     public static boolean isLANConAuthenticated = false;
-    public static String thisDeviceID = null;
-
     public AuthenticateConnection(Context context) {
         this.context = context;
         this.sharedPref = context.getSharedPreferences(Constants.PREF_NAME, Context.MODE_PRIVATE);
@@ -111,8 +109,7 @@ public class AuthenticateConnection {
     public void generatePIN(ApiService api){
         try{
         Map<String, Object> body = new HashMap<>();
-        body.put("deviceName", sharedPref.getString("thisDeviceName", null));
-        body.put("phoneIP",new NetworkDiscovery(context).getPhoneIP());
+        body.put("clientDeviceID", sharedPref.getString(Constants.THIS_DEVICE_ID, null));
         api.generatePIN(body).enqueue(new Callback<Map<String, Object>>() {
 
             @Override
@@ -120,11 +117,10 @@ public class AuthenticateConnection {
                 Map<String, Object> result = response.body();
                 if(result != null && result.get("status") != null && result.get("status").equals("success")){
                     Log.d(TAG, "PIN generated successfully");
-                    String deviceID = (String) result.get("deviceID");
-                    thisDeviceID = deviceID;
+                    String serverDeviceID = (String) result.get("deviceID");
                     HashMap<String,Object> deviceInfo = new HashMap<>();
                     deviceInfo.put(Constants.KEY_LAST_SEEN,new Date());
-                    storeDeviceData(deviceID,deviceInfo);
+                    storeDeviceData(serverDeviceID,deviceInfo);
                 }
                 else{
                     Log.d(TAG, Objects.requireNonNull(result.get("message")).toString());
@@ -140,13 +136,12 @@ public class AuthenticateConnection {
         catch (Exception e){
             Log.e(TAG, "Error while generating PIN : " + e.getMessage());
         }
-
     }
 
     public void authenticateLAN(String pinInput, ApiService api, GetAuthenticateResponse callback){
         Map<String, Object> body = new HashMap<>();
         body.put("pin", pinInput);
-        body.put("deviceID",getThisDeviceID());
+        body.put("clientDeviceID",getThisDeviceID());
 
         api.authenticateLAN(body).enqueue(new Callback<Map<String, Object>>() {
             @Override
@@ -202,11 +197,48 @@ public class AuthenticateConnection {
                 .addHeader("Authorization",serverInfo.getToken())
                 .build();
 
-        ws = okHttpClient.newWebSocket(request, new WebSocketService((Activity) context));
+        ws = okHttpClient.newWebSocket(request, new WebSocketService(context));
         Log.d(TAG, "WebSocket client started on URL: " + url);
+    }
 
-        // Optional: Trigger shutdown of the dispatcher when finished to avoid memory leaks
-        // client.dispatcher().executorService().shutdown();
+    public void reconnectLastDevice() {
+        Log.d(TAG, "Attempting to reconnect to the last used device...");
+        // 1. Find the last seen device from SharedPreferences
+        Map<String, ?> allEntries = sharedPref.getAll();
+        ServerDeviceModel lastDevice = null;
+        Date lastSeenDate = new Date(0);
+
+        for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
+            if (entry.getKey().startsWith("ID")) {
+                try {
+                    ServerDeviceModel device = new Gson().fromJson((String) entry.getValue(), ServerDeviceModel.class);
+                    if (device != null && device.getLastSeen() != null && device.getLastSeen().after(lastSeenDate)) {
+                        Log.d(TAG, "Found last seen device: " + device.getDeviceName() + " (" + device.getDeviceID() + ")");
+                        lastSeenDate = device.getLastSeen();
+                        lastDevice = device;
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error parsing device data during reconnection", e);
+                }
+            }
+        }
+
+        if (lastDevice != null && lastDevice.getDeviceID() != null) {
+            final String targetDeviceId = lastDevice.getDeviceID();
+            Log.d(TAG, "Last device found: " + lastDevice.getDeviceName() + " (" + targetDeviceId + ")");
+
+            // 2. Start mDNS to find the device's current IP
+            NetworkDiscovery discovery = new NetworkDiscovery(context);
+            discovery.connectLAN((deviceName, ip, port) -> {
+                // Here while re-connecting we need to check if this device which we connecting is same which
+                // we have already connected with
+                Log.d(TAG, "Found server during auto-reconnect: " + deviceName + " at " + ip);
+                verifyConnection(targetDeviceId);
+                discovery.unregister();
+            });
+        } else {
+            Log.d(TAG, "No previously paired device found to reconnect.");
+        }
     }
 
 

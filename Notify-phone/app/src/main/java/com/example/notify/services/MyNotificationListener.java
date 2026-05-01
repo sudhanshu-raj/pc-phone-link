@@ -1,5 +1,6 @@
 package com.example.notify.services;
 
+import android.content.ComponentName;
 import android.os.Bundle;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
@@ -12,6 +13,18 @@ import okhttp3.WebSocket;
 public class MyNotificationListener extends NotificationListenerService {
 
     private final String TAG = "Notifi:NotificationSync";
+
+    @Override
+    public void onListenerConnected() {
+        Log.d(TAG, "Notification Listener Connected");
+    }
+
+    @Override
+    public void onListenerDisconnected() {
+        Log.d(TAG, "Notification Listener Disconnected");
+        // Request rebind if disconnected unexpectedly
+        requestRebind(new ComponentName(this, MyNotificationListener.class));
+    }
 
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {

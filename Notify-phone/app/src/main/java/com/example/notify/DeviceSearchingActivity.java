@@ -27,8 +27,10 @@ import com.example.notify.utils.ScannedDeviceModel;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -42,6 +44,7 @@ public class DeviceSearchingActivity extends AppCompatActivity {
     private List<ScannedDeviceModel> deviceList;
     private NetworkDiscovery networkDiscovery;
     private SharedPreferences sharedPref;
+    private final Set<String> discoveredDevices = new HashSet<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,6 +63,15 @@ public class DeviceSearchingActivity extends AppCompatActivity {
 
         // START THE SERVER HERE
         MDNSDiscovery.OnServiceFoundListener listener = (serverDeviceName,ip,port) -> {
+            String deviceKey = serverDeviceName + "@" + ip + ":" + port;
+            synchronized (discoveredDevices) {
+                if (discoveredDevices.contains(deviceKey)) {
+                    Log.d(TAG, "Duplicate service ignored: " + deviceKey);
+                    return;
+                }
+                discoveredDevices.add(deviceKey);
+            }
+
             Log.d(TAG, "Found  the device on LAN with IP: " + serverDeviceName + " at: " + ip + ":" + port);
 
             //Inform the server device that I found you on LAN
@@ -69,18 +81,19 @@ public class DeviceSearchingActivity extends AppCompatActivity {
             String thisDeviceName = sharedPref.getString(Constants.THIS_DEVICE_NAME, null);
             if(thisDeviceName != null){
                 Map<String,String>  body = new HashMap<>();
-                body.put("deviceName", thisDeviceName);
-                body.put("phoneIP",networkDiscovery.getPhoneIP());
-                body.put("deviceID",sharedPref.getString(Constants.THIS_DEVICE_ID, null));
+                body.put("clientDeviceName", thisDeviceName);
+                body.put("clientDeviceIP",networkDiscovery.getPhoneIP());
+                body.put("clientDeviceID",sharedPref.getString(Constants.THIS_DEVICE_ID, null));
 
                 api.phonesFound(body).enqueue(new Callback<Map<String, Object>>(){
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                        Log.d(TAG, "Sent phonesFound request");
+                        Log.d(TAG, "Sent phonesFound request for: " + serverDeviceName);
                         Map<String, Object> result = response.body();
                         if(result != null && result.get("status") != null && result.get("status").equals("success")){
                             String serverDeviceID = (String) result.get("serverDeviceID");
                             HashMap<String,Object> deviceInfo = new HashMap<>();
+                            Log.d(TAG, "Server device ID: " + serverDeviceID);
                             deviceInfo.put(Constants.KEY_DEVICE_ID,serverDeviceID);
                             deviceInfo.put(Constants.KEY_DEVICE_NAME,serverDeviceName);
                             deviceInfo.put(Constants.KEY_DEVICE_IP,ip);
@@ -106,9 +119,9 @@ public class DeviceSearchingActivity extends AppCompatActivity {
                 Log.d(TAG, "Device name is null, can't send phonesFound request");
             }
 
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            new Handler(Looper.getMainLooper()).post(() -> {
                 addDevice(serverDeviceName, false);
-            }, 2000);
+            });
 
         };
         networkDiscovery = new NetworkDiscovery(listener,this);
@@ -132,6 +145,15 @@ public class DeviceSearchingActivity extends AppCompatActivity {
             return insets;
         });
 
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (networkDiscovery != null) {
+            networkDiscovery.unregister();
+            Log.d(TAG, "NetworkDiscovery unregistered in onDestroy");
+        }
     }
 
     private void addDevice(String name, boolean isPairing) {

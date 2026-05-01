@@ -63,11 +63,15 @@ public class MDNSDiscovery {
                                     }
                                 }
                             }
-                            String deviceName = service.getServiceName();
-
+                            String deviceName = serviceInfo.getServiceName();
                             int port = serviceInfo.getPort();
-                            Log.d(TAG, "Resolved: " + ip + ":" + port);
-                            listener.onServiceFound(deviceName,ip, port);
+
+                            if (ip != null) {
+                                Log.d(TAG, "Resolved: " + ip + ":" + port);
+                                listener.onServiceFound(deviceName, ip, port);
+                            } else {
+                                Log.w(TAG, "Resolved service but no usable IPv4 address found for " + deviceName);
+                            }
                         }
                         @Override
                         public void onResolveFailed(NsdServiceInfo serviceInfo, int errorCode) {
