@@ -94,11 +94,11 @@ async function startAppServices() {
         }
 
         pinWindow.webContents.once("did-finish-load", () => {
-          pinWindow.webContents.send("pin-found", pin);
+          pinWindow.webContents.send("pin-generated", pin);
           console.log("send the pin to window", pin);
         });
       },
-      onAuthenticationSuccess : () =>{
+      onAuthenticationSuccess: () => {
         const sourceWindow = mainWindow;
         const pinWindow = createNotificationWindow();
         mainWindow = pinWindow;
@@ -106,7 +106,7 @@ async function startAppServices() {
         if (sourceWindow && !sourceWindow.isDestroyed()) {
           sourceWindow.close();
         }
-      }
+      },
     }).then((httpServer) => {
       if (httpServer) {
         httpPort = httpServer.address().port;
@@ -141,11 +141,11 @@ ipcMain.handle("store:set", (_event, key, value) => {
   return true;
 });
 
-ipcMain.handle("store:list-ids", () =>{
+ipcMain.handle("store:list-ids", () => {
   return Object.entries(store.store)
-  .filter(([k]) => k.startsWith("ID"))
-  .reduce((obj, [k, v]) => ({ ...obj, [k]: v }), {});
-})
+    .filter(([k]) => k.startsWith("ID"))
+    .reduce((obj, [k, v]) => ({ ...obj, [k]: v }), {});
+});
 
 function buildServiceName(lanIp) {
   if (!lanIp) {
@@ -189,14 +189,17 @@ function startWebSocketServer(port) {
     console.log("Phone connected :", req.socket.remoteAddress);
 
     ws.on("message", (data) => {
-      const message = data.toString();
-      console.log("Received", message);
-
-      if (mainWindow) {
-        console.log("sending mssg to");
-        mainWindow.webContents.send("phone-data", message);
+      const mssgString = data.toString();
+      try {
+        const mssgObj = JSON.parse(mssgString);
+        if (mainWindow) {
+          console.log("sending mssg to");
+          mainWindow.webContents.send("notification-popup", mssgObj);
+        }
+        ws.send("Received on PC");
+      } catch (error) {
+        console.log("Message is plain string", mssgString);
       }
-      ws.send("Received on PC");
     });
 
     ws.send("Connected to Elctron PC");
@@ -211,7 +214,7 @@ ipcMain.on("set-device-name", (_event, value) => {
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
-
+  store.clear();
   mainWindow = createInstructionWindow();
 
   app.on("activate", () => {
@@ -238,7 +241,7 @@ app.whenReady().then(() => {
       deviceScanWindow.webContents.once("did-finish-load", () => {
         deviceScanWindow.webContents.send("device-name", deviceNameValue);
         store.set("thisDeviceName", deviceNameValue);
-        store.set("thisDeviceID",utils.generateKeys())
+        store.set("thisDeviceID", utils.generateKeys());
         if (!isServerStarted) {
           startAppServices();
         }

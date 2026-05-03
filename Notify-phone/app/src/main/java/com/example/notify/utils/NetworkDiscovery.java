@@ -24,13 +24,16 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
     private final Context context;
     public static String serverIP;
     public static String serverDeviceName;
+    public static  String serverDeviceID;
     public static int  httpPort;
 
     // Track which transports are currently active to handle onLost correctly
     private final Set<Integer> activeTransports = new HashSet<>();
+
+    // Here this var means , whether it is on LAN and connected to the mdns service of server  or not,
+    // this doesn't answer whether it's authenticated or not or connected to websocket server or not
     public static boolean isConnectedToLAN= false;
-    private static boolean isSearching = false; 
-    private boolean isAuthenticationRequired;
+    private static boolean isSearching = false;
     private MDNSDiscovery.OnServiceFoundListener listener;
     private MDNSDiscovery activeMdnsDiscovery; // Track the current discovery session
 
@@ -99,13 +102,12 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
         if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
             Log.d(TAG, "WiFi available");
             activeTransports.add(NetworkCapabilities.TRANSPORT_WIFI);
-            if(!isConnectedToLAN && isAuthenticationRequired) {
-                connectLAN();
-            }
-            else if(!isConnectedToLAN && !isAuthenticationRequired){
+            if(!isConnectedToLAN ) {
                 connectLAN(listener);
             }
-
+            else{
+                Log.d(TAG,"Already connected to the LAN");
+            }
         }
         if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
             Log.d(TAG, "Cellular available");

@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 import android.util.Log;
 
 import com.example.notify.interfaces.ApiService;
+import com.example.notify.utils.ScannedDeviceModel;
 import com.example.notify.utils.ServerDeviceModel;
 import com.example.notify.utils.Constants;
 import com.example.notify.utils.NetworkDiscovery;
@@ -156,17 +157,23 @@ public class AuthenticateConnection {
                     // Safely handle Double-to-Integer conversion from GSON
                     Object wsPortObj = result.get("webSocketPort");
                     Integer wsPort = (wsPortObj instanceof Number) ? ((Number) wsPortObj).intValue() : null;
-                    String serverDeviceID = (String) result.get("serverDeviceID");
-
                     HashMap<String,Object> deviceInfo = new HashMap<>();
                     deviceInfo.put(Constants.KEY_TOKEN,token);
                     deviceInfo.put(Constants.KEY_WS_PORT,wsPort);
                     deviceInfo.put(Constants.KEY_LAST_SEEN,new Date());
                     deviceInfo.put(Constants.KEY_IS_CONNECTED,true);
+                    String serverDeviceID = NetworkDiscovery.serverDeviceID;
+                    if(serverDeviceID==null){
+                        Log.e(TAG,"Server device ID is null, cannot store the data");
+                    }
                     storeDeviceData(serverDeviceID,deviceInfo);
 
                     sharedPref.edit().putBoolean("isDeviceSetup",true).apply();
+                    Log.d(TAG,"Data going to store on model is :"+deviceInfo.toString());
+
                     webSocketURL = "ws://" + NetworkDiscovery.serverIP + ":" + wsPort ;
+                    ServerDeviceModel deviceModel = getSavedDeviceData(serverDeviceID);
+                    Log.d(TAG,"Server device model for id "+serverDeviceID+" is :"+deviceModel.toString());
                     startWebSocket(webSocketURL,serverDeviceID);
 
                     callback.onResponse(true);
@@ -273,6 +280,9 @@ public class AuthenticateConnection {
                         break;
                     case Constants.KEY_LAST_SEEN:
                         deviceInfo.setLastSeen((Date) data.get(key));
+                        break;
+                    case Constants.KEY_TOKEN:
+                        deviceInfo.setToken((String) data.get(key));
                         break;
                 }
             }

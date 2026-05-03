@@ -99,7 +99,6 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
   app.post("/authenticateLAN", async (req, res) => {
     try {
       const { pin, clientDeviceID } = req.body;
-      console.log("Got the pin:", pin, ", from device:", clientDeviceID); // ERASE THIS
 
       if (!scannedClientDevicesInfo[clientDeviceID] || !scannedClientDevicesInfo[clientDeviceID]?.pin) {
         return res.json({
@@ -147,7 +146,6 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
         onAuthenticationSuccess();
       }
       const wsport = await utils.getWebSocketPort();
-      console.log("websocket port sending:",wsport," & it has type :",typeof(wsport))
       return res.json({
         status: "success",
         token: token,

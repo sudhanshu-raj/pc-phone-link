@@ -13,6 +13,9 @@
 
     <queries>
         <package android:name="com.example.notify" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
     </queries>
 
     <application

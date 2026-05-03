@@ -90,4 +90,18 @@ public class ServerDeviceModel {
     public void setToken(String token) {
         this.token = token;
     }
+
+    @Override
+    public String toString() {
+        return "ServerDeviceModel{" +
+                "deviceName='" + deviceName + '\'' +
+                ", deviceID='" + deviceID + '\'' +
+                ", deviceIP='" + deviceIP + '\'' +
+                ", isConnected=" + isConnected +
+                ", httpPort=" + httpPort +
+                ", wsPort=" + wsPort +
+                ", lastSeen=" + lastSeen +
+                ", token='" + token + '\'' +
+                '}';
+    }
 }

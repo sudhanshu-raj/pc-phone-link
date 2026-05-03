@@ -23,6 +23,7 @@ import com.example.notify.services.ScannedDeviceAdapter;
 import com.example.notify.utils.Constants;
 import com.example.notify.utils.NetworkDiscovery;
 import com.example.notify.utils.ScannedDeviceModel;
+import com.example.notify.utils.ServerDeviceModel;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -94,6 +95,7 @@ public class DeviceSearchingActivity extends AppCompatActivity {
                             String serverDeviceID = (String) result.get("serverDeviceID");
                             HashMap<String,Object> deviceInfo = new HashMap<>();
                             Log.d(TAG, "Server device ID: " + serverDeviceID);
+                            NetworkDiscovery.serverDeviceID = serverDeviceID;
                             deviceInfo.put(Constants.KEY_DEVICE_ID,serverDeviceID);
                             deviceInfo.put(Constants.KEY_DEVICE_NAME,serverDeviceName);
                             deviceInfo.put(Constants.KEY_DEVICE_IP,ip);
@@ -103,10 +105,7 @@ public class DeviceSearchingActivity extends AppCompatActivity {
                         }
                         else{
                             Log.d(TAG, "Error sending phonesFound request: " + result.get("message"));
-
-
                         }
-
                     }
 
                     @Override
@@ -125,7 +124,6 @@ public class DeviceSearchingActivity extends AppCompatActivity {
 
         };
         networkDiscovery = new NetworkDiscovery(listener,this);
-        networkDiscovery.register();
 
 
 
@@ -148,11 +146,34 @@ public class DeviceSearchingActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
+    protected void onStart() {
+        super.onStart();
+        if (networkDiscovery != null) {
+            synchronized (discoveredDevices) {
+                discoveredDevices.clear();
+            }
+            deviceList.clear();
+            scannedDeviceAdapter.notifyDataSetChanged();
+            networkDiscovery.register();
+            Log.d(TAG, "NetworkDiscovery registered in onStart and state cleared");
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
         if (networkDiscovery != null) {
             networkDiscovery.unregister();
-            Log.d(TAG, "NetworkDiscovery unregistered in onDestroy");
+            Log.d(TAG, "NetworkDiscovery unregistered in onStop");
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Safety check if onStop wasn't sufficient or called
+        if (networkDiscovery != null) {
+            networkDiscovery.unregister();
         }
     }
 

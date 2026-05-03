@@ -23,6 +23,7 @@ import androidx.core.view.WindowInsetsCompat;
 import com.example.notify.interfaces.ApiService;
 import com.example.notify.services.ApiClient;
 import com.example.notify.services.AuthenticateConnection;
+import com.example.notify.utils.Constants;
 import com.example.notify.utils.NetworkDiscovery;
 
 public class PIN_VerificationActivity extends AppCompatActivity {
@@ -107,7 +108,7 @@ public class PIN_VerificationActivity extends AppCompatActivity {
         authenticateConnection.authenticateLAN(pin, apiService, isAuthenticated -> {
             if (isAuthenticated) {
                 Toast.makeText(this, "Connection Successful!", Toast.LENGTH_SHORT).show();
-                SharedPreferences sharedPreferences = getSharedPreferences("Notify_shared_pref", Context.MODE_PRIVATE);
+                SharedPreferences sharedPreferences = getSharedPreferences(Constants.PREF_NAME, Context.MODE_PRIVATE);
                 sharedPreferences.edit().putBoolean("isDeviceSetup",true).apply();
                 Intent intent = new Intent(this, ConnectedDeviceListActivity.class);
                 startActivity(intent);

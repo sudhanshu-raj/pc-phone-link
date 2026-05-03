@@ -8,6 +8,7 @@ function  createNotificationWindow(){
         height : 544,
         resizable: false,
         webPreferences: {
+                    // devTools: true,
                     preload: path.join(__dirname, '../../preload.js'),
                     contextIsolation: true,
                     nodeIntegration: false,
@@ -15,6 +16,9 @@ function  createNotificationWindow(){
     })
 
     win.loadFile(path.join(__dirname, "index.html"))
+    // win.webContents.once("did-finish-load", () => {
+    //     win.webContents.openDevTools({ mode: "detach" });
+    // });
     return win;
 
     

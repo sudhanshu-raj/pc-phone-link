@@ -109,15 +109,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void tryConnectLAN(String serverDeviceID) {
-        if (!NetworkDiscovery.isConnectedToLAN) {
-            Log.d(TAG, "Attempting to connect to LAN...");
-            networkDiscovery.connectLAN((deviceName, ip, port) -> {
-                Log.d(TAG, "Found server at: " + ip);
-                runOnUiThread(() -> authenticateConnection.verifyConnection(serverDeviceID));
-            });
-        }
-    }
 
     public void sendMsg(View v) {
         if (AuthenticateConnection.isLANConAuthenticated) {

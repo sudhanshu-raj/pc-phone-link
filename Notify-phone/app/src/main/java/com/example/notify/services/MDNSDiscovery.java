@@ -54,15 +54,25 @@ public class MDNSDiscovery {
                             }
 
                             String ip = null;
-                            if (hostAddresses != null) {
+                            if (hostAddresses != null && !hostAddresses.isEmpty()) {
                                 for (InetAddress address : hostAddresses) {
                                     if (isUsableLanAddress(address)) {
                                         ip = address.getHostAddress();
-                                        Log.d(TAG, "Selected usable LAN IP: " + ip);
+                                        Log.d(TAG, "Selected usable LAN IP from hostAddresses: " + ip);
                                         break;
                                     }
                                 }
                             }
+                            
+                            // Fallback for older devices or if hostAddresses didn't generates  an IP
+                            if (ip == null) {
+                                InetAddress host = serviceInfo.getHost();
+                                if (host != null && isUsableLanAddress(host)) {
+                                    ip = host.getHostAddress();
+                                    Log.d(TAG, "Selected usable LAN IP from getHost(): " + ip);
+                                }
+                            }
+
                             String deviceName = serviceInfo.getServiceName();
                             int port = serviceInfo.getPort();
 
@@ -112,8 +122,15 @@ public class MDNSDiscovery {
     }
 
     public void stopDiscovery() {
-        if (discoveryListener != null) {
-            nsdManager.stopServiceDiscovery(discoveryListener);
+        if (nsdManager != null && discoveryListener != null) {
+            try {
+                nsdManager.stopServiceDiscovery(discoveryListener);
+                Log.d(TAG, "mDNS Discovery stopped successfully");
+            } catch (Exception e) {
+                Log.e(TAG, "Error stopping mDNS discovery: " + e.getMessage());
+            } finally {
+                discoveryListener = null;
+            }
         }
     }
 

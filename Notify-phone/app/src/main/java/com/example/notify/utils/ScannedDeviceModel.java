@@ -24,4 +24,7 @@ public class ScannedDeviceModel {
     public void setPairing(boolean pairing) {
         isPairing = pairing;
     }
+
+
+
 }
