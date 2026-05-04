@@ -37,6 +37,8 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
     private MDNSDiscovery.OnServiceFoundListener listener;
     private MDNSDiscovery activeMdnsDiscovery; // Track the current discovery session
 
+    public boolean isNetworkCallbackRegistered;
+
     public NetworkDiscovery(Context context) {
         this.context = context;
         this.cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -54,12 +56,17 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
                 .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
                 .build();
         cm.registerNetworkCallback(networkRequest, this);
+        isNetworkCallbackRegistered = true;
     }
 
     public void unregister() {
         try {
             stopMdnsDiscovery();
-            cm.unregisterNetworkCallback(this);
+
+            if(isNetworkCallbackRegistered){
+                cm.unregisterNetworkCallback(this);
+                isNetworkCallbackRegistered = false;
+            }
         } catch (Exception e) {
             Log.e(TAG, "Error unregistering network callback", e);
         }
@@ -135,17 +142,6 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
         }
     }
 
-    public  void connectLAN(){
-        if(!isConnectedToLAN){
-            Log.d(TAG,"Connecting the LAN Server...");
-            connectLAN((serverDeviceName,ip, port) -> {
-                Log.d(TAG, "Connected to the server of LAN with IP: " + serverDeviceName + " at: " + ip + ":" + port);
-            });
-        }
-        else{
-            Log.d(TAG,"Already connected to the LAN");
-        }
-    }
 
     public void connectLAN(MDNSDiscovery.OnServiceFoundListener listener){
         if(!isWifiConnected()){

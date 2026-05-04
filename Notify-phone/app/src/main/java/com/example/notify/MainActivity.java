@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
@@ -12,7 +13,10 @@ import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import android.os.PowerManager;
+import android.Manifest;
+import android.os.Build;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import android.net.Uri;
 import android.provider.Settings;
 import androidx.activity.EdgeToEdge;
@@ -52,8 +56,18 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Check permissions and setup in onResume so it re-triggers when returning from Settings
+        // Request notification permission for Android 13+
+        checkPostNotificationPermission();
+        // Check other permissions and setup
         checkPermissionsAndSetup();
+    }
+
+    private void checkPostNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+            }
+        }
     }
 
     private void checkPermissionsAndSetup() {
