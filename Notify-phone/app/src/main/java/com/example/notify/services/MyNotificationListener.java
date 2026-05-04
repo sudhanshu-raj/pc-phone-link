@@ -1,6 +1,13 @@
 package com.example.notify.services;
 
 import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Intent;
+import android.os.Build;
+import androidx.core.app.NotificationCompat;
+import com.example.notify.MainActivity;
 import android.app.RemoteInput;
 import android.content.ComponentName;
 import android.content.pm.PackageManager;
@@ -27,6 +34,49 @@ import okhttp3.WebSocket;
 public class MyNotificationListener extends NotificationListenerService {
 
     private final String TAG = "Notifi:NotificationSync";
+
+    private static final String CHANNEL_ID = "NotificationSyncChannel";
+    private static final int NOTIFICATION_ID = 1;
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        createNotificationChannel();
+        startForeground(NOTIFICATION_ID, getStickyNotification());
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel serviceChannel = new NotificationChannel(
+                    CHANNEL_ID,
+                    "Notification Sync Service",
+                    NotificationManager.IMPORTANCE_LOW
+            );
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.createNotificationChannel(serviceChannel);
+            }
+        }
+    }
+
+    private android.app.Notification getStickyNotification() {
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this,
+                0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
+
+        return new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("Notify is active")
+                .setContentText("Syncing notifications to your PC...")
+                .setSmallIcon(android.R.drawable.ic_menu_share)
+                .setContentIntent(pendingIntent)
+                .setOngoing(true)
+                .build();
+    }
+
+    @Override
+    public int onStartCommand(android.content.Intent intent, int flags, int startId) {
+        return START_STICKY;
+    }
 
     @Override
     public void onListenerConnected() {

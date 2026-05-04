@@ -12,6 +12,9 @@ import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import android.os.PowerManager;
+import android.net.Uri;
+import android.provider.Settings;
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -61,6 +64,9 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "Notification listener service is enabled");
             rebindService();
             
+            // Request to ignore battery optimizations for "Always On" behavior
+            checkBatteryOptimizations();
+            
             // ONLY proceed to Setup Instructions if notification permission is granted
             if (!sharedPreferences.getBoolean("isDeviceSetup", false)) {
                 Log.d(TAG, "Device not setup, launching instructions");
@@ -72,6 +78,22 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent = new Intent(this, ConnectedDeviceListActivity.class);
                 startActivity(intent);
             }
+        }
+    }
+
+    private void checkBatteryOptimizations() {
+        PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+        if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Keep App Running in Background")
+                    .setMessage("To ensure notifications are synced even when your phone is locked, please allow 'Notify' to always run in the background.")
+                    .setPositiveButton("Allow", (dialog, which) -> {
+                        Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                        intent.setData(Uri.parse("package:" + getPackageName()));
+                        startActivity(intent);
+                    })
+                    .setNegativeButton("Later", null)
+                    .show();
         }
     }
 
