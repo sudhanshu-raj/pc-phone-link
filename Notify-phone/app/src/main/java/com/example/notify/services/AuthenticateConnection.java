@@ -169,11 +169,7 @@ public class AuthenticateConnection {
                     storeDeviceData(serverDeviceID,deviceInfo);
 
                     sharedPref.edit().putBoolean("isDeviceSetup",true).apply();
-                    Log.d(TAG,"Data going to store on model is :"+deviceInfo.toString());
-
                     webSocketURL = "ws://" + NetworkDiscovery.serverIP + ":" + wsPort ;
-                    ServerDeviceModel deviceModel = getSavedDeviceData(serverDeviceID);
-                    Log.d(TAG,"Server device model for id "+serverDeviceID+" is :"+deviceModel.toString());
                     startWebSocket(webSocketURL,serverDeviceID);
 
                     callback.onResponse(true);
