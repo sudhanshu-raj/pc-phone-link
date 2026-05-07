@@ -13,7 +13,9 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  app.get("/ping", (req, res) => {
+  const router = express.Router();
+
+  router.get("/ping", (req, res) => {
     try {
       return res.json({
         message: "pong",
@@ -27,13 +29,13 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
     }
   });
 
-  app.post("/phonesFound", (req, res) => {
+  router.post("/phonesFound", (req, res) => {
     try {
       const { clientDeviceName, clientDeviceIP, clientDeviceID } = req.body;
       if (onPhoneFound) {
         onPhoneFound({ deviceName:clientDeviceName, ip: clientDeviceIP });
       }
-      console.log("found the device:", clientDeviceName, "ip:", clientDeviceIP);
+      console.log("found device request:", clientDeviceName, "ip:", clientDeviceIP);
       scannedClientDevicesInfo[clientDeviceID] = {
         deviceName : "ID"+clientDeviceName,
         isConnected : false,
@@ -49,7 +51,7 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
     }
   });
 
-  app.post("/generatePIN", (req, res) => {
+  router.post("/generatePIN", (req, res) => {
     try {
       const { clientDeviceID } = req.body;
 
@@ -96,7 +98,7 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
     }
   });
 
-  app.post("/authenticateLAN", async (req, res) => {
+  router.post("/authenticateLAN", async (req, res) => {
     try {
       const { pin, clientDeviceID } = req.body;
 
@@ -161,7 +163,7 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
     }
   });
 
-  app.post("/verifyLANToken", async (req, res) => {
+  router.post("/verifyToken", async (req, res) => {
     try {
       const { token, deviceID } = req.body;
       console.log("Got the token:", token, " from device id:", deviceID);
@@ -174,13 +176,13 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
         });
       }
 
-      const originalToken = store.get(deviceID)?.token;
-      const isAuthenticated = store.get(deviceID)?.isAuthenticated;
+      const originalToken = store.get("ID"+deviceID)?.token;
 
-      if (originalToken === token && isAuthenticated) {
+      if (originalToken && originalToken === token ) {
         return res.json({
           status: "success",
           webSocketURL: await utils.getWebSocketURL(),
+          message : 'Token verified'
         });
       } else {
         return res.json({
@@ -190,7 +192,7 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
         });
       }
     } catch (error) {
-      console.error("Error in /verifyLANToken route:", error);
+      console.error("Error in /verifyToken route:", error);
       return res.status(500).json({
         status: "error",
         failureType: "SERVER_ERROR",
@@ -198,6 +200,8 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
       });
     }
   });
+
+  app.use("/api/v1", router);
 
   const server = app.listen(HTTP_PORT, () => {
     console.log("Server running on port", HTTP_PORT);

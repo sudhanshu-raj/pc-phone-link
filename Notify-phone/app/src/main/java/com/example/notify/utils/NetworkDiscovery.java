@@ -1,6 +1,7 @@
 package com.example.notify.utils;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -37,10 +38,9 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
     private MDNSDiscovery.OnServiceFoundListener listener;
     private MDNSDiscovery activeMdnsDiscovery; // Track the current discovery session
 
-    public boolean isNetworkCallbackRegistered;
 
     public NetworkDiscovery(Context context) {
-        this.context = context;
+        this.context = context.getApplicationContext();
         this.cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
     }
 
@@ -51,22 +51,20 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
     }
 
     public void register() {
+
         NetworkRequest networkRequest = new NetworkRequest.Builder()
                 .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
                 .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
                 .build();
         cm.registerNetworkCallback(networkRequest, this);
-        isNetworkCallbackRegistered = true;
     }
 
+    // it will stop the mDNS discovery to the energy in foreground services and remove the existing on device discovery listener
     public void unregister() {
         try {
             stopMdnsDiscovery();
+            this.listener = null;
 
-            if(isNetworkCallbackRegistered){
-                cm.unregisterNetworkCallback(this);
-                isNetworkCallbackRegistered = false;
-            }
         } catch (Exception e) {
             Log.e(TAG, "Error unregistering network callback", e);
         }
@@ -105,16 +103,23 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
     public void onAvailable(Network network) {
         NetworkCapabilities caps = cm.getNetworkCapabilities(network);
         if (caps == null) return;
-
+        SharedPreferences sharedPref = context.getSharedPreferences("Notify_shared_pref", Context.MODE_PRIVATE);
         if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
             Log.d(TAG, "WiFi available");
-            activeTransports.add(NetworkCapabilities.TRANSPORT_WIFI);
-            if(!isConnectedToLAN ) {
-                connectLAN(listener);
-            }
-            else{
-                Log.d(TAG,"Already connected to the LAN");
-            }
+
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                activeTransports.add(NetworkCapabilities.TRANSPORT_WIFI);
+                if(listener != null) {
+                    connectLAN(listener);
+                }
+                // if app in running on background and device is already setup then need to re-connect server
+                else if(sharedPref.getBoolean(Constants.IS_DEVICE_SETUP,false)){
+                    new AuthenticateConnection(context).reconnectLastDevice();
+                }
+                else{
+                    Log.d(TAG,"Already connected to the LAN");
+                }
+            }, 1000);
         }
         if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
             Log.d(TAG, "Cellular available");
@@ -148,9 +153,9 @@ public class NetworkDiscovery extends ConnectivityManager.NetworkCallback {
             Log.d(TAG,"Wi-Fi not connected");
             return;
         }
-        
-        if (isSearching || isConnectedToLAN) {
-            Log.d(TAG, "Search already in progress or already connected");
+
+        if (isSearching ) {
+            Log.d(TAG, "Search already in progress");
             return;
         }
 

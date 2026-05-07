@@ -9,23 +9,23 @@ import retrofit2.http.POST;
 
 public interface ApiService {
 
-    @GET("/ping")
+    @GET("ping")
     Call<Map<String, Object>> ping();
 
-    @GET("/pong")
+    @GET("pong")
     Call<Map<String, Object>> pong();
 
-    @POST("/phonesFound")
+    @POST("phonesFound")
     Call<Map<String, Object>> phonesFound(@Body Map<String, String> body);
 
 
-    @POST("/verifyLANToken")
+    @POST("verifyToken")
     Call<Map<String, Object>> verifyToken(@Body Map<String, Object> body);
 
-    @POST("/generatePIN")
+    @POST("generatePIN")
     Call<Map<String,Object>> generatePIN(@Body Map<String, Object> body);
 
-    @POST("/authenticateLAN")
+    @POST("authenticateLAN")
     Call<Map<String,Object>> authenticateLAN(@Body Map<String,Object> body);
 
 }

@@ -47,6 +47,8 @@ public class DeviceSearchingActivity extends AppCompatActivity {
     private SharedPreferences sharedPref;
     private final Set<String> discoveredDevices = new HashSet<>();
 
+    private MDNSDiscovery.OnServiceFoundListener listener;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -63,7 +65,7 @@ public class DeviceSearchingActivity extends AppCompatActivity {
         sharedPref = getSharedPreferences(Constants.PREF_NAME, MODE_PRIVATE);
 
         // START THE SERVER HERE
-        MDNSDiscovery.OnServiceFoundListener listener = (serverDeviceName,ip,port) -> {
+        listener = (serverDeviceName,ip,port) -> {
             String deviceKey = serverDeviceName + "@" + ip + ":" + port;
             synchronized (discoveredDevices) {
                 if (discoveredDevices.contains(deviceKey)) {
@@ -89,6 +91,7 @@ public class DeviceSearchingActivity extends AppCompatActivity {
                 api.phonesFound(body).enqueue(new Callback<Map<String, Object>>(){
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                        Log.d(TAG, String.valueOf(call.request().url()));
                         Log.d(TAG, "Sent phonesFound request for: " + serverDeviceName);
                         Map<String, Object> result = response.body();
                         if(result != null && result.get("status") != null && result.get("status").equals("success")){
@@ -125,8 +128,6 @@ public class DeviceSearchingActivity extends AppCompatActivity {
         };
         networkDiscovery = new NetworkDiscovery(listener,this);
 
-
-
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
 
@@ -148,15 +149,16 @@ public class DeviceSearchingActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        if (networkDiscovery != null) {
-            synchronized (discoveredDevices) {
-                discoveredDevices.clear();
-            }
-            deviceList.clear();
-            scannedDeviceAdapter.notifyDataSetChanged();
-            networkDiscovery.register();
-            Log.d(TAG, "NetworkDiscovery registered in onStart and state cleared");
+        if(networkDiscovery== null){
+            networkDiscovery = new NetworkDiscovery(listener,this);
         }
+        synchronized (discoveredDevices) {
+            discoveredDevices.clear();
+        }
+        deviceList.clear();
+        scannedDeviceAdapter.notifyDataSetChanged();
+        networkDiscovery.register();
+        Log.d(TAG, "NetworkDiscovery registered in onStart and state cleared");
     }
 
     @Override
@@ -164,6 +166,7 @@ public class DeviceSearchingActivity extends AppCompatActivity {
         super.onStop();
         if (networkDiscovery != null) {
             networkDiscovery.unregister();
+            networkDiscovery = null;
             Log.d(TAG, "NetworkDiscovery unregistered in onStop");
         }
     }

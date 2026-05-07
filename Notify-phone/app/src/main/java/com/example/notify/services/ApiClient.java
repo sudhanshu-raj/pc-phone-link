@@ -2,20 +2,24 @@ package com.example.notify.services;
 
 import com.example.notify.interfaces.ApiService;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class ApiClient {
-    private static Retrofit retrofit;
+    // Cache services by their base URL to handle multiple devices/IPs
+    private static final Map<String, ApiService> serviceCache = new HashMap<>();
+
     public static ApiService getService(String baseURL) {
-        if (retrofit == null) {
-            retrofit = new Retrofit.Builder()
-                    .baseUrl(baseURL)  //"http://192.168.1.5:8080/
+        if (!serviceCache.containsKey(baseURL)) {
+            Retrofit retrofit = new Retrofit.Builder()
+                    .baseUrl(baseURL)
                     .addConverterFactory(GsonConverterFactory.create())
                     .build();
+            serviceCache.put(baseURL, retrofit.create(ApiService.class));
         }
-        return retrofit.create(ApiService.class);
+        return serviceCache.get(baseURL);
     }
-
-
 }

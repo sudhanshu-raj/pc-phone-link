@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 
+import com.example.notify.MainActivity;
 import com.example.notify.interfaces.ApiService;
 import com.example.notify.utils.ScannedDeviceModel;
 import com.example.notify.utils.ServerDeviceModel;
@@ -32,7 +33,7 @@ public class AuthenticateConnection {
     private final Context context;
     private final SharedPreferences sharedPref;
 
-    boolean isTokenValid;
+    boolean isTokenValid =false;
     public String webSocketURL;
 
     OkHttpClient okHttpClient = new OkHttpClient();
@@ -43,67 +44,43 @@ public class AuthenticateConnection {
         this.sharedPref = context.getSharedPreferences(Constants.PREF_NAME, Context.MODE_PRIVATE);
     }
 
-    public void verifyConnection(String serverDeviceID){
-        Log.d(TAG, "Verifying connection...");
-        if(!NetworkDiscovery.isConnectedToLAN){
-            Log.d(TAG, "Not connected to LAN, cannot authenticate");
-            return;
-        }
-        if(getBaseURL()==null){
-            Log.d(TAG, "Base URL is null, cannot authenticate");
-            return;
-        }
+    private void verifyToken(String token, String serverDeviceID,ApiService api){
 
-        ApiService api = ApiClient.getService(getBaseURL());
-
-        ServerDeviceModel serverInfo = getSavedDeviceData(serverDeviceID);
-        if(serverInfo == null || serverInfo.getToken() == null){
-            Log.d(TAG, "Invalid request, cannot authenticate");
-            return;
-        }
-
-        String token = serverInfo.getToken();
-        String deviceID = sharedPref.getString("deviceID", null);
-
-        verifyToken(token,deviceID, api);
-
-
-    }
-
-    private void verifyToken(String token, String deviceID,ApiService api){
         Map<String, Object> body = new HashMap<>();
         body.put("token", token);
-        body.put("deviceID", deviceID);
-        Log.d(TAG,"Sending the token:"+token+" and deviceID:"+deviceID+" to the server");
+        body.put("deviceID", getThisDeviceID());
+        Log.d(TAG,"Sending the token and deviceID to the server");
 
-        api.verifyToken(body).enqueue(new Callback<Map<String, Object>>() {
-            @Override
-            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                Map<String, Object> result = response.body();
-                if(result != null){
-                     String status = (String) result.get("status");
-                     if(status != null && status.equals("success")){
-                         Log.d(TAG, "Token is valid");
-                         isTokenValid = true;
-                         webSocketURL = (String) result.get("webSocketURL");
-                         isLANConAuthenticated = true;
-                         startWebSocket(webSocketURL,deviceID);
-                     }
-                     else{
-                         Log.d(TAG, Objects.requireNonNull(result.get("message")).toString());
-                         isTokenValid = false;
-                         generatePIN(api);
-                     }
+        try {
+
+            api.verifyToken(body).enqueue(new Callback<Map<String, Object>>() {
+                @Override
+                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                    Map<String, Object> result = response.body();
+                    if (result != null) {
+                        String status = (String) result.get("status");
+                        if (status != null && status.equals("success")) {
+                            Log.d(TAG, "Token is valid");
+                            isTokenValid = true;
+                            webSocketURL = (String) result.get("webSocketURL");
+                            isLANConAuthenticated = true;
+                            startWebSocket(webSocketURL, serverDeviceID);
+                        } else {
+                            Log.d(TAG, "Token is invalid");
+                            Log.d(TAG, Objects.requireNonNull(result.get("message")).toString());
+                        }
+                    }
                 }
-            }
 
-            @Override
-            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                Log.d(TAG, "Error verifying token: " + t.getMessage());
-                isTokenValid = false;
-                generatePIN(api);
-            }
-        });
+                @Override
+                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                    Log.d(TAG, "Error verifying token: " + t.getMessage());
+                }
+            });
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error while verifying token: " + e.getMessage());
+        }
 
     }
 
@@ -168,7 +145,7 @@ public class AuthenticateConnection {
                     }
                     storeDeviceData(serverDeviceID,deviceInfo);
 
-                    sharedPref.edit().putBoolean("isDeviceSetup",true).apply();
+                    sharedPref.edit().putBoolean(Constants.IS_DEVICE_SETUP,true).apply();
                     webSocketURL = "ws://" + NetworkDiscovery.serverIP + ":" + wsPort ;
                     startWebSocket(webSocketURL,serverDeviceID);
 
@@ -204,46 +181,107 @@ public class AuthenticateConnection {
         Log.d(TAG, "WebSocket client started on URL: " + url);
     }
 
+    // It will reconnect to the last device that was used to connect to the server, it must be already authenticated
     public void reconnectLastDevice() {
         Log.d(TAG, "Attempting to reconnect to the last used device...");
-        // 1. Find the last seen device from SharedPreferences
-        Map<String, ?> allEntries = sharedPref.getAll();
-        ServerDeviceModel lastDevice = null;
-        Date lastSeenDate = new Date(0);
 
-        for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
-            if (entry.getKey().startsWith("ID")) {
-                try {
-                    ServerDeviceModel device = new Gson().fromJson((String) entry.getValue(), ServerDeviceModel.class);
-                    if (device != null && device.getLastSeen() != null && device.getLastSeen().after(lastSeenDate)) {
-                        Log.d(TAG, "Found last seen device: " + device.getDeviceName() + " (" + device.getDeviceID() + ")");
-                        lastSeenDate = device.getLastSeen();
-                        lastDevice = device;
+        try {
+            // 1. Find the last seen device from SharedPreferences
+            Map<String, ?> allEntries = sharedPref.getAll();
+            ServerDeviceModel lastDevice = null;
+            Date lastSeenDate = null;
+
+            for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
+                if (entry.getKey().startsWith("ID")) {
+                    try {
+                        ServerDeviceModel device = new Gson().fromJson((String) entry.getValue(), ServerDeviceModel.class);
+                        if (device != null && device.getLastSeen() != null) {
+                            if (lastDevice == null || device.getLastSeen().after(lastSeenDate)) {
+                                Log.d(TAG, "Found more recent device: " + device.getDeviceName() + " (" + device.getDeviceID() + ")");
+                                lastSeenDate = device.getLastSeen();
+                                lastDevice = device;
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error parsing device data during reconnection", e);
                     }
-                } catch (Exception e) {
-                    Log.e(TAG, "Error parsing device data during reconnection", e);
                 }
             }
-        }
 
-        if (lastDevice != null && lastDevice.getDeviceID() != null) {
-            final String targetDeviceId = lastDevice.getDeviceID();
-            Log.d(TAG, "Last device found: " + lastDevice.getDeviceName() + " (" + targetDeviceId + ")");
+            if (lastDevice != null && lastDevice.getDeviceID() != null) {
+                String targetDeviceId = lastDevice.getDeviceID();
+                String targetDeviceName = lastDevice.getDeviceName();
+                String serverIP = lastDevice.getDeviceIP();
+                Integer httpPort = lastDevice.getHttpPort();
+                String token = lastDevice.getToken();
 
-            // 2. Start mDNS to find the device's current IP
-            NetworkDiscovery discovery = new NetworkDiscovery(context);
-            discovery.connectLAN((deviceName, ip, port) -> {
-                // Here while re-connecting we need to check if this device which we connecting is same which
-                // we have already connected with
-                Log.d(TAG, "Found server during auto-reconnect: " + deviceName + " at " + ip);
-                verifyConnection(targetDeviceId);
-                discovery.unregister();
-            });
-        } else {
-            Log.d(TAG, "No previously paired device found to reconnect.");
+                Log.d(TAG, "Last device found: " + lastDevice.getDeviceName() + " (" + targetDeviceId + ")");
+
+                if (serverIP != null && httpPort != null && token != null) {
+                    ApiService api = ApiClient.getService("http://" + serverIP + ":" + httpPort + "/api/v1/");
+                    Log.d(TAG, "Pinging at server on api :"+api.toString());
+
+                    pingServer(api, isAvailable -> {
+                        if (isAvailable) {
+                            // Server is up and same ip address to just verify the token to connect
+                            verifyToken(token, targetDeviceId, api);
+                        } else {
+                            Log.d(TAG, "Ping failed,have to found the server again to re-connect");
+
+                            // Starting mDNS to find the device's current IP
+                            NetworkDiscovery discovery = new NetworkDiscovery(context);
+                            discovery.connectLAN((deviceName, ip, port) -> {
+                                if (targetDeviceName.equals(deviceName)) {
+                                    ApiService newAPI = ApiClient.getService("http://" + ip + ":" + port + "/api/v1/");
+                                    Log.d(TAG, "Found server during auto-reconnect: " + deviceName + " at " + ip);
+                                    verifyToken(token, targetDeviceId, newAPI);
+                                    discovery.unregister();
+                                }
+
+                            });
+                        }
+                    });
+
+                }
+
+
+            } else {
+                Log.d(TAG, "No previously paired device found to reconnect.");
+            }
+        } catch (Exception e){
+            Log.e(TAG, "Error during reconnect the last device", e);
         }
     }
 
+
+    public void pingServer(ApiService api,PingResponseCallback callback){
+
+        try {
+            api.ping().enqueue(new Callback<Map<String, Object>>() {
+                @Override
+                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                    Log.d(TAG, "Ping sent successfully");
+                    Map<String, Object> res = response.body();
+                    if (res != null && res.get("message") != null && res.get("message").equals("pong")) {
+                        callback.onResponse(true);
+                    } else {
+                        callback.onResponse(false);
+                    }
+
+                }
+
+                @Override
+                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                    Log.d(TAG, "Error sending ping: " + t.getMessage());
+                    callback.onResponse(false);
+                }
+            });
+        }
+        catch (Exception e){
+            Log.d(TAG, "Error sending ping: " + e.getMessage());
+            callback.onResponse(false);
+        }
+    }
 
     public void storeDeviceData(String deviceId, HashMap<String,Object> data) {
         try {
@@ -311,5 +349,9 @@ public class AuthenticateConnection {
 
     public interface GetAuthenticateResponse {
         void onResponse(boolean isAuthenticated);
+    }
+
+    public interface PingResponseCallback {
+        void onResponse(boolean isAvailable);
     }
 }

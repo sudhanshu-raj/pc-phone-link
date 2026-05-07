@@ -16,6 +16,8 @@ public final class Constants {
     public static final String THIS_DEVICE_NAME="thisDeviceName";
     public static final String THIS_DEVICE_ID="thisDeviceID";
 
+    public static final String  IS_DEVICE_SETUP = "isDeviceSetup";
+
 
 
 

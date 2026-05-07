@@ -25,6 +25,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.notify.services.AuthenticateConnection;
 import com.example.notify.services.MyNotificationListener;
+import com.example.notify.utils.Constants;
 import com.example.notify.utils.NetworkDiscovery;
 
 import okhttp3.OkHttpClient;
@@ -38,7 +39,6 @@ public class MainActivity extends AppCompatActivity {
     private NetworkDiscovery networkDiscovery;
     private OkHttpClient client = new OkHttpClient();
     private WebSocket ws;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -82,7 +82,7 @@ public class MainActivity extends AppCompatActivity {
             checkBatteryOptimizations();
             
             // ONLY proceed to Setup Instructions if notification permission is granted
-            if (!sharedPreferences.getBoolean("isDeviceSetup", false)) {
+            if (!sharedPreferences.getBoolean(Constants.IS_DEVICE_SETUP, false)) {
                 Log.d(TAG, "Device not setup, launching instructions");
                 Intent intent = new Intent(this, SetupInstructionsActivity.class);
                 startActivity(intent);

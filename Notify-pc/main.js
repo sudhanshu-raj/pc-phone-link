@@ -262,7 +262,7 @@ app.whenReady().then(() => {
     }
 
     try {
-      const response = await fetch(`http://localhost:${httpPort}/generatePIN`, {
+      const response = await fetch(`http://localhost:${httpPort}/api/v1/generatePIN`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
