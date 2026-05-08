@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.notify.PIN_VerificationActivity;
 import com.example.notify.R;
 import com.example.notify.interfaces.ApiService;
+import com.example.notify.utils.NetworkDiscovery;
 import com.example.notify.utils.ScannedDeviceModel;
 
 import java.util.List;
@@ -54,9 +55,16 @@ public class ScannedDeviceAdapter extends RecyclerView.Adapter<ScannedDeviceAdap
         }
 
         holder.pairButton.setOnClickListener(v -> {
-            // Handle pair logic, ex,
-            AuthenticateConnection authConn= new AuthenticateConnection(context);
-            ApiService apiService = ApiClient.getService(authConn.getBaseURL());
+            // Update global network discovery state for the selected device
+            NetworkDiscovery.serverIP = device.getIp();
+            NetworkDiscovery.httpPort = device.getPort();
+            NetworkDiscovery.serverDeviceName = device.getDeviceName();
+
+            // Handle pair logic
+            String baseURL = "http://" + device.getIp() + ":" + device.getPort() + "/api/v1/";
+            ApiService apiService = ApiClient.getService(baseURL);
+            
+            AuthenticateConnection authConn = new AuthenticateConnection(context);
             authConn.generatePIN(apiService);
 
             Intent intent = new Intent(context, PIN_VerificationActivity.class);

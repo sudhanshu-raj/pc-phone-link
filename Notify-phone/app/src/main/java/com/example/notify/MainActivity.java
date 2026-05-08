@@ -50,7 +50,7 @@ public class MainActivity extends AppCompatActivity {
 
         authenticateConnection = new AuthenticateConnection(this);
         networkDiscovery = new NetworkDiscovery(this);
-        sharedPreferences = getSharedPreferences("Notify_shared_pref", MODE_PRIVATE);
+        sharedPreferences = getSharedPreferences(Constants.PREF_NAME, MODE_PRIVATE);
     }
 
     @Override
@@ -87,8 +87,7 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent = new Intent(this, SetupInstructionsActivity.class);
                 startActivity(intent);
             } else {
-                Log.d(TAG, "Device already setup, attempting auto-reconnect");
-                authenticateConnection.reconnectLastDevice();
+                Log.d(TAG, "Device already setup. Service handles auto-reconnect.");
                 Intent intent = new Intent(this, ConnectedDeviceListActivity.class);
                 startActivity(intent);
             }

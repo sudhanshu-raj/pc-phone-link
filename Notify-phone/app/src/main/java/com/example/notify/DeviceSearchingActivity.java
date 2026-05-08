@@ -122,7 +122,7 @@ public class DeviceSearchingActivity extends AppCompatActivity {
             }
 
             new Handler(Looper.getMainLooper()).post(() -> {
-                addDevice(serverDeviceName, false);
+                addDevice(serverDeviceName, ip, port, false);
             });
 
         };
@@ -180,15 +180,17 @@ public class DeviceSearchingActivity extends AppCompatActivity {
         }
     }
 
-    private void addDevice(String name, boolean isPairing) {
+    private void addDevice(String name, String ip, int port, boolean isPairing) {
         for (int i = 0; i < deviceList.size(); i++) {
             if (deviceList.get(i).getDeviceName().equals(name)) {
+                deviceList.get(i).setIp(ip);
+                deviceList.get(i).setPort(port);
                 deviceList.get(i).setPairing(isPairing);
                 scannedDeviceAdapter.notifyItemChanged(i);
                 return;
             }
         }
-        deviceList.add(0, new ScannedDeviceModel(name, isPairing));
+        deviceList.add(0, new ScannedDeviceModel(name, ip, port, isPairing));
         scannedDeviceAdapter.notifyItemInserted(0);
         // Optional: Scroll to top so the user sees the new device immediately
         devicesRecyclerView.scrollToPosition(0);

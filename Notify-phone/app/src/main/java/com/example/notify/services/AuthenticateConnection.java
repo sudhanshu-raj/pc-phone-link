@@ -172,6 +172,13 @@ public class AuthenticateConnection {
             Log.d(TAG, "Invalid request, cannot start WebSocket");
             return;
         }
+
+        // Close existing connection if it exists
+        if (ws != null) {
+            Log.d(TAG, "Closing existing WebSocket before opening new one");
+            ws.close(1000, "New connection starting");
+        }
+
         Request request = new Request.Builder()
                 .url(url)
                 .addHeader("Authorization",serverInfo.getToken())
@@ -183,8 +190,14 @@ public class AuthenticateConnection {
 
     // It will reconnect to the last device that was used to connect to the server, it must be already authenticated
     public void reconnectLastDevice() {
-        Log.d(TAG, "Attempting to reconnect to the last used device...");
+        // Check if WiFi is connected before attempting to reconnect
+        NetworkDiscovery networkDiscovery = new NetworkDiscovery(context);
+        if (!networkDiscovery.isWifiConnected()) {
+            Log.d(TAG, "Not connected to WiFi. Skipping reconnection attempt.");
+            return;
+        }
 
+        Log.d(TAG, "Attempting to reconnect to the last used device...");
         try {
             // 1. Find the last seen device from SharedPreferences
             Map<String, ?> allEntries = sharedPref.getAll();

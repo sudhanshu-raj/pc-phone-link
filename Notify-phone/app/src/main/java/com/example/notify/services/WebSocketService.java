@@ -17,7 +17,10 @@ public class WebSocketService extends WebSocketListener {
 
 
     private Activity activity;
+    private final Context context;
+
     public WebSocketService(Context context)  {
+        this.context = context.getApplicationContext();
         if (context instanceof Activity) {
             this.activity = (Activity) context;
         }
@@ -44,7 +47,8 @@ public class WebSocketService extends WebSocketListener {
 
     @Override
     public void onFailure(WebSocket webSocket, Throwable t, Response response) {
-        Log.e(TAG, "Connection Failed: " + t.getMessage(), t);
+        Log.e(TAG, "Connection Failed: " + t.getMessage());
+        retryConnection();
     }
 
     @Override
@@ -55,5 +59,20 @@ public class WebSocketService extends WebSocketListener {
     @Override
     public void onClosed(WebSocket webSocket, int code, String reason) {
         Log.d(TAG, "Closed: " + reason);
+        // Only retry if it wasn't a normal closure (e.g. 1000)
+        if (code != 1000) {
+            retryConnection();
+        }
+    }
+
+    private void retryConnection() {
+        if (!new com.example.notify.utils.NetworkDiscovery(context).isWifiConnected()) {
+            Log.d(TAG, "WiFi not connected, skipping reconnection retry.");
+            return;
+        }
+        Log.d(TAG, "Scheduling reconnection attempt in 5 seconds...");
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            new AuthenticateConnection(context).reconnectLastDevice();
+        }, 5000);
     }
 }

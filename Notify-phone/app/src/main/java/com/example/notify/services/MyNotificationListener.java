@@ -37,12 +37,31 @@ public class MyNotificationListener extends NotificationListenerService {
 
     private static final String CHANNEL_ID = "NotificationSyncChannel";
     private static final int NOTIFICATION_ID = 1;
+    private NetworkDiscovery networkDiscovery;
 
     @Override
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
         startForeground(NOTIFICATION_ID, getStickyNotification());
+
+        // Initialize and register network discovery to handle background connectivity.
+        // This will automatically trigger reconnectLastDevice() via onAvailable when registered.
+        networkDiscovery = new NetworkDiscovery(this);
+        networkDiscovery.register();
+    }
+
+    @Override
+    public int onStartCommand(android.content.Intent intent, int flags, int startId) {
+        return START_STICKY;
+    }
+
+    @Override
+    public void onDestroy() {
+        if (networkDiscovery != null) {
+            networkDiscovery.unregister();
+        }
+        super.onDestroy();
     }
 
     private void createNotificationChannel() {
@@ -71,11 +90,6 @@ public class MyNotificationListener extends NotificationListenerService {
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
                 .build();
-    }
-
-    @Override
-    public int onStartCommand(android.content.Intent intent, int flags, int startId) {
-        return START_STICKY;
     }
 
     @Override
