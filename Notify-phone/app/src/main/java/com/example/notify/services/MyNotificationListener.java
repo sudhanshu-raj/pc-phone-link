@@ -4,7 +4,11 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.os.BatteryManager;
 import android.os.Build;
 import androidx.core.app.NotificationCompat;
 import com.example.notify.MainActivity;
@@ -21,13 +25,22 @@ import android.service.notification.StatusBarNotification;
 import android.util.Base64;
 import android.util.Log;
 
+import com.example.notify.utils.AppHelper;
+import com.example.notify.utils.Constants;
 import com.example.notify.utils.NetworkDiscovery;
+import com.example.notify.utils.ServerDeviceModel;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.LongFunction;
 
 import okhttp3.WebSocket;
 
@@ -228,5 +241,43 @@ public class MyNotificationListener extends NotificationListenerService {
 
         return actionLists;
     }
+
+
+    public void sendHeartBeatRepeat(String deviceID){
+
+        HashMap<String,String> payload = new HashMap<>();
+        SharedPreferences storage = getSharedPreferences(Constants.PREF_NAME, MODE_PRIVATE);
+        ServerDeviceModel deviceInfo = new Gson().fromJson(storage.getString("ID"+deviceID,null),ServerDeviceModel.class);
+        if(deviceInfo == null) {
+            Log.e(TAG, "Device info is null, cannot process");
+            return;
+        }
+
+        payload.put("battery", AppHelper.getBatteryPercentage(this)+"");
+        payload.put("status", "online");
+
+
+        ScheduledExecutorService scheduler =
+                Executors.newSingleThreadScheduledExecutor();
+
+        scheduler.scheduleWithFixedDelay(() -> {
+
+            WebSocket currentWs = AuthenticateConnection.ws;
+            if (currentWs != null) {
+                currentWs.send(new Gson().toJson(payload));
+                Log.d(TAG, "Heartbeat sent");
+            } else {
+                Log.d(TAG, "WebSocket is not connected, cannot sync notification");
+            }
+
+            Date lastSeen = deviceInfo.getLastSeen();
+
+            if(lastSeen == null || lastSeen.getTime() < System.currentTimeMillis() - 10000){
+                new AuthenticateConnection(this).reconnectLastDevice();
+                Log.d(TAG,"No heart beat received from server after 10 seconds, reconnecting...");
+            }
+        }, 0, 5, TimeUnit.SECONDS);
+    }
+
 
 }

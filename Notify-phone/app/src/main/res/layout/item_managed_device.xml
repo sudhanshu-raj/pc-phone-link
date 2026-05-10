@@ -17,7 +17,8 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:ignore="UseAppTint"/>
+        app:layout_constraintVertical_bias="0.4"
+        tools:ignore="UseAppTint" />
 
     <TextView
         android:id="@+id/managedDeviceName"
@@ -85,5 +86,29 @@
         app:layout_constraintEnd_toEndOf="@+id/btnStatus"
         app:layout_constraintStart_toStartOf="@+id/btnStatus"
         app:layout_constraintTop_toBottomOf="@+id/btnStatus" />
+
+    <TextView
+        android:id="@+id/batteryLabel"
+        android:layout_width="53dp"
+        android:layout_height="18dp"
+        android:layout_marginStart="5dp"
+        android:layout_marginTop="40dp"
+        android:text="87%"
+        android:textAlignment="center"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/chargingIcon"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="20dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@drawable/ic_charging"
+        app:tint="#FFFFFF" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

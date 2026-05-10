@@ -122,6 +122,24 @@ function renderNotifications() {
 	}
 }
 
+function renderDeviceSummary(device) {
+	const batteryLabel = document.querySelector(".battery [data-battery-percentage]");
+	const chargingIcon = document.querySelector(".battery [data-battery-state]");
+
+	if (batteryLabel) {
+		batteryLabel.textContent =
+			device?.batteryPercentage !== null && device?.batteryPercentage !== undefined
+				? `${device.batteryPercentage}%`
+				: "--%";
+	}
+
+	if (chargingIcon) {
+		const isCharging = device?.isCharging === true;
+		chargingIcon.hidden = !isCharging;
+		chargingIcon.setAttribute("aria-hidden", String(!isCharging));
+	}
+}
+
 
 async function addIncomingNotification(payload) {
 	const nextNotification = toNotificationItem(payload);
@@ -161,6 +179,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 	if (selectedDevice) {
 		deviceName.textContent = selectedDevice["deviceName"] ? selectedDevice["deviceName"].slice(2) : "Unknown";
 		isConnected.textContent = selectedDevice["isConnected"] ? "Connected" : "Not Connected";
+		renderDeviceSummary(selectedDevice);
 	}
 
 	renderNotifications();

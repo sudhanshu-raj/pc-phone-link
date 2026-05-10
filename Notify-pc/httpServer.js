@@ -100,7 +100,7 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
 
   router.post("/authenticateLAN", async (req, res) => {
     try {
-      const { pin, clientDeviceID } = req.body;
+      const { pin, clientDeviceID,batteryPercentage,isCharging } = req.body;
 
       if (!scannedClientDevicesInfo[clientDeviceID] || !scannedClientDevicesInfo[clientDeviceID]?.pin) {
         return res.json({
@@ -142,16 +142,21 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
       store.set(("ID"+clientDeviceID), {
         ...scannedClientDevicesInfo[clientDeviceID],
         token: token,
-        isSelected : true
+        isSelected : true,
+        batteryPercentage : batteryPercentage ? batteryPercentage : null,
+        isCharging : isCharging ? isCharging : null
       });
       if(onAuthenticationSuccess){
         onAuthenticationSuccess();
       }
       const wsport = await utils.getWebSocketPort();
+      const batteryData = await utils.getBatteryData();
       return res.json({
         status: "success",
         token: token,
         webSocketPort: wsport,
+        batteryPercentage : batteryData?.percent,
+        isCharging : batteryData?.isCharging,
       });
     } catch (error) {
       console.error("Error in /authenticateLAN route:", error);
@@ -165,7 +170,7 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
 
   router.post("/verifyToken", async (req, res) => {
     try {
-      const { token, deviceID } = req.body;
+      const { token, deviceID,batteryPercentage,isCharging } = req.body;
       console.log("Got the token:", token, " from device id:", deviceID);
 
       if (!token) {
@@ -176,12 +181,22 @@ async function createHttpServer({ onPhoneFound, onNewPINGenerated, onAuthenticat
         });
       }
 
+      store.set(("ID" + deviceID), {
+        ...(store.get("ID" + deviceID) || {}),
+        batteryPercentage: batteryPercentage ? batteryPercentage : null,
+        isCharging: isCharging ? isCharging : null,
+      });
+
       const originalToken = store.get("ID"+deviceID)?.token;
 
       if (originalToken && originalToken === token ) {
+        const batteryData = await utils.getBatteryData();
         return res.json({
           status: "success",
           webSocketURL: await utils.getWebSocketURL(),
+          webSocketPort : await utils.getWebSocketPort(),
+          batteryPercentage : batteryData?.percent,
+          isCharging : batteryData?.isCharging,
           message : 'Token verified'
         });
       } else {

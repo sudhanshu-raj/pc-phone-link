@@ -58,7 +58,6 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         // Request notification permission for Android 13+
         checkPostNotificationPermission();
-        // Check other permissions and setup
         checkPermissionsAndSetup();
     }
 

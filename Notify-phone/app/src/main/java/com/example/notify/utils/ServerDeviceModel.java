@@ -10,6 +10,9 @@ public class ServerDeviceModel {
     private Boolean isConnected = false;
     private Integer httpPort;
     private Integer wsPort;
+    private Integer batteryPercentage;
+
+    private Boolean isCharging;
     private Date lastSeen;
     private String token;
 
@@ -91,6 +94,22 @@ public class ServerDeviceModel {
         this.token = token;
     }
 
+    public Integer getBatteryPercentage() {
+        return batteryPercentage;
+    }
+
+    public void setBatteryPercentage(Integer batteryPercentage) {
+        this.batteryPercentage = batteryPercentage;
+    }
+
+    public Boolean getCharging() {
+        return isCharging;
+    }
+
+    public void setCharging(Boolean charging) {
+        isCharging = charging;
+    }
+
     @Override
     public String toString() {
         return "ServerDeviceModel{" +
@@ -102,6 +121,8 @@ public class ServerDeviceModel {
                 ", wsPort=" + wsPort +
                 ", lastSeen=" + lastSeen +
                 ", token='" + token + '\'' +
+                ", batteryLabel='" + batteryPercentage + '\'' +
+                ", isCharging=" + isCharging +
                 '}';
     }
 }

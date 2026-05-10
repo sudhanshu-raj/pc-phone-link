@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const os = require('os')
 const net = require('net');
+const si = require('systeminformation');
 
 class utils {
 
@@ -105,6 +106,11 @@ class utils {
     static async getHTTP_PORT(){
         return await this.findAvailablePort(this.HTTP_DEFAULT_PORT);
     }
+
+    static async  getBatteryData() {
+        const data = await si.battery();
+        return {percent :data.percent, isCharging : data.isCharging};
+}
 
     
 }

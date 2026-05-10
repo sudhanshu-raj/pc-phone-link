@@ -110,6 +110,13 @@ body {
   margin-top : 7px
 }
 
+.battery [data-battery-state] {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  margin-bottom: 2px;
+}
+
 .device-copy {
   min-width: 0;
   margin-top: 10px;

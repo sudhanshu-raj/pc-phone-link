@@ -18,6 +18,10 @@ public final class Constants {
 
     public static final String  IS_DEVICE_SETUP = "isDeviceSetup";
 
+    public static final String BATTERY_PERCENTAGE = "batteryPercentage";
+
+    public static final String KEY_IS_CHARGING = "isCharging";
+
 
 
 

@@ -39,6 +39,14 @@ public class ConnectedDeviceAdapter extends RecyclerView.Adapter<ConnectedDevice
     public void onBindViewHolder(@NonNull ConnDeviceViewHolder holder, int position) {
         ServerDeviceModel device = deviceList.get(position);
         holder.deviceName.setText(device.getDeviceName());
+        Integer battery = device.getBatteryPercentage();
+        holder.batteryLabel.setText(battery != null ? battery + "%" : "N/A");
+
+        if (device.getCharging() != null && device.getCharging()) {
+            holder.chargingIcon.setVisibility(View.VISIBLE);
+        } else {
+            holder.chargingIcon.setVisibility(View.GONE);
+        }
 
         if (device.getConnected()) {
             holder.btnStatus.setText("Connected");
@@ -69,6 +77,9 @@ public class ConnectedDeviceAdapter extends RecyclerView.Adapter<ConnectedDevice
         private ImageView btnSync;
         private AppCompatButton btnStatus;
         private AppCompatButton btnDisconnect;
+        private TextView batteryLabel;
+        private ImageView chargingIcon;
+
 
         public ConnDeviceViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -77,6 +88,8 @@ public class ConnectedDeviceAdapter extends RecyclerView.Adapter<ConnectedDevice
             btnSync = itemView.findViewById(R.id.btnSync);
             btnStatus = itemView.findViewById(R.id.btnStatus);
             btnDisconnect = itemView.findViewById(R.id.btnDisconnect);
+            batteryLabel = itemView.findViewById(R.id.batteryLabel);
+            chargingIcon = itemView.findViewById(R.id.chargingIcon);
         }
     }
 }

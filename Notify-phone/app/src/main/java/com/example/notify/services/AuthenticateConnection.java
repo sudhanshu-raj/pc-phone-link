@@ -1,13 +1,11 @@
 package com.example.notify.services;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 
-import com.example.notify.MainActivity;
 import com.example.notify.interfaces.ApiService;
-import com.example.notify.utils.ScannedDeviceModel;
+import com.example.notify.utils.AppHelper;
 import com.example.notify.utils.ServerDeviceModel;
 import com.example.notify.utils.Constants;
 import com.example.notify.utils.NetworkDiscovery;
@@ -49,6 +47,9 @@ public class AuthenticateConnection {
         Map<String, Object> body = new HashMap<>();
         body.put("token", token);
         body.put("deviceID", getThisDeviceID());
+        int batteryPercentage = AppHelper.getBatteryPercentage(context);
+        body.put("batteryPercentage", batteryPercentage);
+        body.put("isCharging", AppHelper.isBatteryCharging(context));
         Log.d(TAG,"Sending the token and deviceID to the server");
 
         try {
@@ -63,7 +64,30 @@ public class AuthenticateConnection {
                             Log.d(TAG, "Token is valid");
                             isTokenValid = true;
                             webSocketURL = (String) result.get("webSocketURL");
+
+                            Object wsPort = result.get("webSocketPort");
+                            Integer wsPortInt = (wsPort instanceof Number) ? ((Number) wsPort).intValue() : null;
+                            Object batteryPercentageObj = result.get("batteryPercentage");
+                            Integer batteryPercentageFromServer = (batteryPercentageObj instanceof Number) ? ((Number) batteryPercentageObj).intValue() : null;
+                            Boolean isCharging = (Boolean) result.get("isCharging");
+
+                            HashMap<String,Object> deviceInfo = new HashMap<>();
+                            deviceInfo.put(Constants.KEY_WS_PORT, wsPortInt != null ? wsPortInt : wsPort);
+                            deviceInfo.put(Constants.KEY_LAST_SEEN, new Date());
+                            deviceInfo.put(Constants.KEY_IS_CONNECTED, true);
+                            
+                            // Prefer local battery percentage if server returns null or 0
+                            if (batteryPercentageFromServer != null && batteryPercentageFromServer > 0) {
+                                deviceInfo.put(Constants.BATTERY_PERCENTAGE, batteryPercentageFromServer);
+                            } else {
+                                deviceInfo.put(Constants.BATTERY_PERCENTAGE, batteryPercentage);
+                            }
+                            
+                            deviceInfo.put(Constants.KEY_IS_CHARGING, isCharging);
+
+                            storeDeviceData(serverDeviceID,deviceInfo);
                             isLANConAuthenticated = true;
+
                             startWebSocket(webSocketURL, serverDeviceID);
                         } else {
                             Log.d(TAG, "Token is invalid");
@@ -120,50 +144,81 @@ public class AuthenticateConnection {
         Map<String, Object> body = new HashMap<>();
         body.put("pin", pinInput);
         body.put("clientDeviceID",getThisDeviceID());
+        int batteryPercentage = AppHelper.getBatteryPercentage(context);
+        Log.d(TAG,"battery percentage sending via authenticate lan is :"+batteryPercentage+" %");
+        body.put("batteryPercentage", batteryPercentage);
+        body.put("isCharging", AppHelper.isBatteryCharging(context));
 
-        api.authenticateLAN(body).enqueue(new Callback<Map<String, Object>>() {
-            @Override
-            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                Map<String,Object> result = response.body();
-                if(result != null && result.get("status") != null && result.get("status").equals("success")){
-                    Log.d(TAG, "Authentication successful");
-                    isTokenValid = true;
-                    isLANConAuthenticated = true;
-                    String token = (String) result.get("token");
-                    
-                    // Safely handle Double-to-Integer conversion from GSON
-                    Object wsPortObj = result.get("webSocketPort");
-                    Integer wsPort = (wsPortObj instanceof Number) ? ((Number) wsPortObj).intValue() : null;
-                    HashMap<String,Object> deviceInfo = new HashMap<>();
-                    deviceInfo.put(Constants.KEY_TOKEN,token);
-                    deviceInfo.put(Constants.KEY_WS_PORT,wsPort);
-                    deviceInfo.put(Constants.KEY_LAST_SEEN,new Date());
-                    deviceInfo.put(Constants.KEY_IS_CONNECTED,true);
-                    String serverDeviceID = NetworkDiscovery.serverDeviceID;
-                    if(serverDeviceID==null){
-                        Log.e(TAG,"Server device ID is null, cannot store the data");
+        try {
+            api.authenticateLAN(body).enqueue(new Callback<Map<String, Object>>() {
+                @Override
+                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                    Map<String, Object> result = response.body();
+                    if (result != null && result.get("status") != null && result.get("status").equals("success")) {
+                        Log.d(TAG, "Authentication successful");
+                        isTokenValid = true;
+                        isLANConAuthenticated = true;
+                        String token = (String) result.get("token");
+                        HashMap<String, Object> deviceInfo = new HashMap<>();
+                        if (result.get("batteryPercentage") != null) {
+                            Object batteryPercentageObj = result.get("batteryPercentage");
+                            Integer batteryPercentageFromServer = (batteryPercentageObj instanceof Number) ? ((Number) batteryPercentageObj).intValue() : null;
+                            if (batteryPercentageFromServer != null && batteryPercentageFromServer > 0) {
+                                deviceInfo.put(Constants.BATTERY_PERCENTAGE, batteryPercentageFromServer);
+                            } else {
+                                deviceInfo.put(Constants.BATTERY_PERCENTAGE, batteryPercentage);
+                            }
+                        } else {
+                            deviceInfo.put(Constants.BATTERY_PERCENTAGE, batteryPercentage);
+                        }
+                        if (result.get("isCharging") != null) {
+                            Boolean isCharging = (Boolean) result.get("isCharging");
+                            deviceInfo.put(Constants.KEY_IS_CHARGING, isCharging);
+                        }
+
+                        // Safely handle Double-to-Integer conversion from GSON
+                        Object wsPortObj = result.get("webSocketPort");
+                        Integer wsPort = (wsPortObj instanceof Number) ? ((Number) wsPortObj).intValue() : null;
+
+                        deviceInfo.put(Constants.KEY_TOKEN, token);
+                        deviceInfo.put(Constants.KEY_WS_PORT, wsPort);
+                        deviceInfo.put(Constants.KEY_LAST_SEEN, new Date());
+                        deviceInfo.put(Constants.KEY_IS_CONNECTED, true);
+                        String serverDeviceID = NetworkDiscovery.serverDeviceID;
+                        if (serverDeviceID == null) {
+                            Log.e(TAG, "Server device ID is null, cannot store the data");
+                        }
+                        storeDeviceData(serverDeviceID, deviceInfo);
+
+                        sharedPref.edit().putBoolean(Constants.IS_DEVICE_SETUP, true).apply();
+                        webSocketURL = "ws://" + NetworkDiscovery.serverIP + ":" + wsPort;
+                        startWebSocket(webSocketURL, serverDeviceID);
+
+                        callback.onResponse(true);
+
+                    } else {
+                        String message ;
+                        if(result !=null && result.get("message")!=null){
+                            message = (String) result.get("message");
+                        }
+                        else{
+                            message = "Unknown error";
+                        }
+                        Log.d(TAG, Objects.requireNonNull(message));
+                        callback.onResponse(false);
                     }
-                    storeDeviceData(serverDeviceID,deviceInfo);
-
-                    sharedPref.edit().putBoolean(Constants.IS_DEVICE_SETUP,true).apply();
-                    webSocketURL = "ws://" + NetworkDiscovery.serverIP + ":" + wsPort ;
-                    startWebSocket(webSocketURL,serverDeviceID);
-
-                    callback.onResponse(true);
-
                 }
-                else{
-                    Log.d(TAG, Objects.requireNonNull(result.get("message")).toString());
+
+                @Override
+                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                    Log.d(TAG, "Error authenticating LAN: " + t.getMessage());
                     callback.onResponse(false);
                 }
-            }
-
-            @Override
-            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                Log.d(TAG, "Error authenticating LAN: " + t.getMessage());
-                callback.onResponse(false);
-            }
-        });
+            });
+        }
+        catch (Exception e){
+            Log.e(TAG, "Error while authenticating LAN : " + e.getMessage());
+        }
     }
 
     private void startWebSocket(String url,String serverDeviceID) {
@@ -248,6 +303,10 @@ public class AuthenticateConnection {
                                     ApiService newAPI = ApiClient.getService("http://" + ip + ":" + port + "/api/v1/");
                                     Log.d(TAG, "Found server during auto-reconnect: " + deviceName + " at " + ip);
                                     verifyToken(token, targetDeviceId, newAPI);
+                                    HashMap<String,Object> deviceInfo = new HashMap<>();
+                                    deviceInfo.put(Constants.KEY_DEVICE_IP,ip);
+                                    deviceInfo.put(Constants.KEY_HTTP_PORT,String.valueOf(port));
+                                    storeDeviceData(targetDeviceId,deviceInfo);
                                     discovery.unregister();
                                 }
 
@@ -324,6 +383,12 @@ public class AuthenticateConnection {
                     case Constants.KEY_WS_PORT:
                         Object wsPortObj = data.get(key);
                         deviceInfo.setWsPort(wsPortObj instanceof Number ? ((Number) wsPortObj).intValue() : null);
+                        break;
+                    case Constants.BATTERY_PERCENTAGE:
+                        deviceInfo.setBatteryPercentage((Integer) data.get(key));
+                        break;
+                    case Constants.KEY_IS_CHARGING:
+                        deviceInfo.setCharging((Boolean) data.get(key));
                         break;
                     case Constants.KEY_LAST_SEEN:
                         deviceInfo.setLastSeen((Date) data.get(key));
